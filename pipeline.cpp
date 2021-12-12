@@ -15,55 +15,54 @@
 #include <stb_image_write.h>
 
 void PipelineRasterize::CreateDescriptorSets(pv2::Context context, int size, SimpCamera cam)
- {
-     std::vector<VkDescriptorSetLayout> layouts(size, m_descriptorSetLayout);
-     VkDescriptorSetAllocateInfo allocInfo {};
-     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-     allocInfo.descriptorPool = m_descriptorPool;
-     allocInfo.descriptorSetCount = static_cast<uint32_t>(size);
-     allocInfo.pSetLayouts = layouts.data();
+{
+    std::vector<VkDescriptorSetLayout> layouts(size, m_descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(size);
+    allocInfo.pSetLayouts = layouts.data();
 
-     m_descriptorSets.resize(size);
-     if (vkAllocateDescriptorSets(context.m_device, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS) {
-         throw std::runtime_error("failed to allocate descriptor sets!");
-     }
+    m_descriptorSets.resize(size);
+    if (vkAllocateDescriptorSets(context.m_device, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
 
-     for (size_t i = 0; i < size; i++) {
-         VkDescriptorBufferInfo bufferInfo {};
-         bufferInfo.buffer = cam.m_uniformBuffers[i];
-         bufferInfo.offset = 0;
-         bufferInfo.range = sizeof(SimpCamera::UniformBufferObject);
+    for (size_t i = 0; i < size; i++) {
+        VkDescriptorBufferInfo bufferInfo {};
+        bufferInfo.buffer = cam.m_uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(SimpCamera::UniformBufferObject);
 
-         VkWriteDescriptorSet descriptorWrite {};
-         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-         descriptorWrite.dstSet = m_descriptorSets[i];
-         descriptorWrite.dstBinding = 0;
-         descriptorWrite.dstArrayElement = 0;
-         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-         descriptorWrite.descriptorCount = 1;
-         descriptorWrite.pBufferInfo = &bufferInfo;
+        VkWriteDescriptorSet descriptorWrite {};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_descriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
 
-         vkUpdateDescriptorSets(context.m_device, 1, &descriptorWrite, 0, nullptr);
-     }
- }
-   
+        vkUpdateDescriptorSets(context.m_device, 1, &descriptorWrite, 0, nullptr);
+    }
+}
+
 void PipelineRasterize::CreateDescriptorPool(pv2::Context context, int size)
-  {
-      VkDescriptorPoolSize poolSize {};
-      poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      poolSize.descriptorCount = static_cast<uint32_t>(size);
+{
+    VkDescriptorPoolSize poolSize {};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = static_cast<uint32_t>(size);
 
-      VkDescriptorPoolCreateInfo poolInfo {};
-      poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-      poolInfo.poolSizeCount = 1;
-      poolInfo.pPoolSizes = &poolSize;
-      poolInfo.maxSets = static_cast<uint32_t>(size);
+    VkDescriptorPoolCreateInfo poolInfo {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = static_cast<uint32_t>(size);
 
-      if (vkCreateDescriptorPool(context.m_device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
-          throw std::runtime_error("failed to create descriptor pool!");
-      }
-  }
-
+    if (vkCreateDescriptorPool(context.m_device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+}
 
 void PipelineRasterize::CreateDescriptorSetLayout(pv2::Context context)
 {
@@ -253,12 +252,21 @@ void PipelineRasterize::CreateGraphicsPipeline(pv2::Context context, pv2::Render
 
 void PipelineBase::CreateCommandPool(pv2::Context context, pv2::RenderBase ren)
 {
-    pv::QueueFamilyIndices queueFamilyIndices = pv::findQueueFamilies(context.m_physicalDevice, ren.m_surface);
+
+    pv::QueueFamilyIndices queueFamilyIndices;
+    pv::QueueGraphicFamilyIndices queueGrFamilyIndices;
+
+    if (context.GetInteractive())
+        queueFamilyIndices = pv::findQueueFamilies(context.m_physicalDevice, ren.m_surface);
+    else
+        queueGrFamilyIndices = pv::findGraphicsQueueFamilies(context.m_physicalDevice);
 
     VkCommandPoolCreateInfo poolInfo {};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-
+    if (context.GetInteractive())
+        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+    else
+        poolInfo.queueFamilyIndex = queueGrFamilyIndices.graphicsFamily.value();
     if (vkCreateCommandPool(context.m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics command pool!");
     }

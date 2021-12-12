@@ -10,7 +10,7 @@
 
 /* The main folder with all data*/
 
-static char* data_dir = "../data";
+//static char* data_dir = "../data";
 // static char*
 // data_dir="/group/director2185/emalikova/particle-based-vis/data";
 

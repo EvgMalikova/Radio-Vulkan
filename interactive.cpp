@@ -202,8 +202,6 @@ private:
     pv2::RenderBase ren;
     PipelineRasterize pipe;
 
-   
-
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
@@ -241,21 +239,33 @@ private:
 
     void initRenderingPipe()
     {
+        bool interact = true; //the headless rendering still needs to be fully set up
+        int width = 1000;
+        int height = 1000;
         m_vsize = 0;
-        context.SetInteractive(true);
+        context.SetInteractive(interact);
         context.Initialize(); //allocates all necessary extensions
 
-        ren.SetWindow(win.GetWindow());
+        if (interact)
+            ren.SetWindow(win.GetWindow());
+        else
+            ren.SetExtent(width, height);
+
         ren.Initialize(context); //creates a surface and deals with swap chains if necessary
 
         context.PickPhysicalDevice(ren.m_surface);
         context.CreateLogicalDevice(ren.m_surface);
         //Main particle loader
-
+        
+        pLoader.SetDataDir("../data/");
         pLoader.SetFileName(m_fitsFilename);
         pLoader.LoadData(1, 0);
 
-        ren.CreateSwapChain(context);
+        if (interact)
+            ren.CreateSwapChain(context);
+        else
+            ren.CreateImage(context);
+
         ren.CreateImageViews(context);
         ren.CreateRenderPass(context);
 
@@ -265,15 +275,19 @@ private:
         pipe.CreateGraphicsPipeline(context, ren);
 
         ren.CreateFramebuffers(context);
+
         pipe.CreateCommandPool(context, ren);
 
         pLoader.CreateVertexBuffer(pipe.m_commandPool, context.m_device, context.m_physicalDevice, context.m_queueGCT); //would be different for ray-tracing
         m_vsize = pLoader.vertices.size();
 
         m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
-        pipe.CreateDescriptorPool(context,ren.m_Images.size());
+        pipe.CreateDescriptorPool(context, ren.m_Images.size());
         pipe.CreateDescriptorSets(context, ren.m_Images.size(), m_cam);
+
+        DEBUG_LOG << "Successfull as far " << std::endl;
         pipe.CreateCommandBuffers(context, ren, pLoader.m_vertexBuffer, m_vsize);
+
         createSyncObjects();
     }
 
@@ -293,7 +307,6 @@ private:
             vkDestroyFramebuffer(context.m_device, framebuffer, nullptr);
         }
 
-        
         pipe.CleanUp(context);
 
         ren.CleanUp(context);
@@ -308,7 +321,6 @@ private:
     void cleanup()
     {
         cleanupSwapChain();
-        
 
         vkDestroyDescriptorSetLayout(context.m_device, pipe.m_descriptorSetLayout, nullptr);
 
@@ -354,16 +366,12 @@ private:
         pipe.CreateGraphicsPipeline(context, ren);
         ren.CreateFramebuffers(context);
         m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
-        pipe.CreateDescriptorPool(context,ren.m_Images.size());
+        pipe.CreateDescriptorPool(context, ren.m_Images.size());
         pipe.CreateDescriptorSets(context, ren.m_Images.size(), m_cam);
         pipe.CreateCommandBuffers(context, ren, pLoader.m_vertexBuffer, m_vsize);
 
         imagesInFlight.resize(ren.m_Images.size(), VK_NULL_HANDLE);
     }
-
-   
-
- 
 
     void createSyncObjects()
     {

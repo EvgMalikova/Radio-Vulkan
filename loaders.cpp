@@ -218,7 +218,7 @@ void PaticleLoader::PrepaireVertices()
     scale = sc / (scale);
     m_scale = glm::vec3(scale, scale,
         sc2 / z_scale); // normalise it all from -1,1, except
-        // for third, that is additionally scaled
+    // for third, that is additionally scaled
 
     std::cout << "check boundaries " << std::endl;
     std::cout << (p_min.x - m_center.x) * m_scale.x << ","
@@ -232,8 +232,8 @@ void PaticleLoader::PrepaireVertices()
     cameraTarget = glm::vec3(
         0.5, 1.0,
         0); // glm::vec3(0, 0, 0);//glm::vec3(0.25*zDefScale, 2.0*zDefScale, 0);
-        // //glm::vec3(0.5, 1.0, -0.01);// //approximate coord of target to
-        // look at
+    // //glm::vec3(0.5, 1.0, -0.01);// //approximate coord of target to
+    // look at
 
     for (int i = 0; i < particle_data.size(); i++) {
         COLOUR e = particle_data[i].e;

@@ -189,6 +189,9 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
         if ((deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) || (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) || (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)) {
             devGPU++;
         }
+
+        if (deviceProperties.deviceType == m_selectedDeviceType)
+            m_physicalDevice = device;
     }
 
     /*
@@ -201,7 +204,7 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
 
     // Run task per device
     //deviceCount = gpuPhysicalDevices.size();
-    std::cout << "There are " << devGPU << " GPU devices found" << std::endl;
+    DEBUG_LOG << "There are " << devGPU << " GPU devices found" << std::endl;
     /*for (int i = 0; i < deviceCount; i++) {
            // initiate procedures for each device
            SetUpQueue(i);
@@ -212,33 +215,57 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
          }*/
 
     //m_physicalDevice = devices[2];
+    if (m_interactive) {
+        for (const auto& device : devices) {
+            if (pv::isDeviceSuitable(device, m_deviceExtensions, surface)) {
+                m_physicalDevice = device;
+                break;
+            }
+        }
 
-    for (const auto& device : devices) {
-        if (pv::isDeviceSuitable(device, m_deviceExtensions, surface)) {
-            m_physicalDevice = device;
-            break;
+        if (m_physicalDevice == VK_NULL_HANDLE) {
+            throw std::runtime_error("failed to find a suitable GPU!");
         }
     }
 
-    if (m_physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("failed to find a suitable GPU!");
+    else { //any device will do for headless rasterization, so we choose a selected one
     }
 
-    std::cout << "Proceed" << std::endl;
+    DEBUG_LOG << "Proceed with " << m_interactive << " set up" << std::endl;
 }
+
+// Set up queue and logical device
 
 void Context::CreateLogicalDevice(VkSurfaceKHR surface)
 {
-    pv::QueueFamilyIndices indices = pv::findQueueFamilies(m_physicalDevice, surface);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    pv::QueueGraphicFamilyIndices indicesGr;
+    pv::QueueFamilyIndices indices;
 
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies) {
+    if (m_interactive) {
+
+        indices = pv::findQueueFamilies(m_physicalDevice, surface);
+
+        std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+
+        float queuePriority = 1.0f;
+        for (uint32_t queueFamily : uniqueQueueFamilies) {
+            VkDeviceQueueCreateInfo queueCreateInfo {};
+            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo.queueFamilyIndex = queueFamily;
+            queueCreateInfo.queueCount = 1;
+            queueCreateInfo.pQueuePriorities = &queuePriority;
+            queueCreateInfos.push_back(queueCreateInfo);
+        }
+    } else {
+        indicesGr = pv::findGraphicsQueueFamilies(m_physicalDevice);
+
+        float queuePriority = 1.0f;
+
         VkDeviceQueueCreateInfo queueCreateInfo {};
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueFamilyIndex = indicesGr.graphicsFamily.value();
         queueCreateInfo.queueCount = 1;
         queueCreateInfo.pQueuePriorities = &queuePriority;
         queueCreateInfos.push_back(queueCreateInfo);
@@ -267,9 +294,14 @@ void Context::CreateLogicalDevice(VkSurfaceKHR surface)
     if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device!");
     }
+    if (m_interactive) {
+        vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_queueGCT);
+        vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_queueP);
+    } else {
+        vkGetDeviceQueue(m_device, indicesGr.graphicsFamily.value(), 0, &m_queueGCT);
+    }
 
-    vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_queueGCT);
-    vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_queueP);
+    DEBUG_LOG << "Created Logical device for type " << m_interactive << std::endl;
 }
 
 }

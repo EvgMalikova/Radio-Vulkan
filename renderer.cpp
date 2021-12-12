@@ -131,6 +131,44 @@ void RenderBase::CreateImageViews(pv2::Context m_context)
     }
 }
 
+void RenderBase::CreateImage(pv2::Context context)
+{
+    VkImageCreateInfo image {};
+    image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image.imageType = VK_IMAGE_TYPE_2D;
+    image.format = m_ImageFormat;
+    image.extent.width = m_Extent.width;
+    image.extent.height = m_Extent.height;
+    image.extent.depth = 1;
+    image.mipLevels = 1;
+    image.arrayLayers = 1;
+    image.samples = VK_SAMPLE_COUNT_1_BIT;
+    image.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+    VkImage inputIm;
+
+    vkCreateImage(context.m_device, &image, nullptr, &inputIm);
+
+    VkMemoryAllocateInfo memAlloc {};
+    memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    VkMemoryRequirements memReqs;
+
+    VkDeviceMemory imMem;
+
+    vkGetImageMemoryRequirements(context.m_device, inputIm, &memReqs);
+    memAlloc.allocationSize = memReqs.size;
+    memAlloc.memoryTypeIndex = pv::getMemoryTypeIndex(
+        memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context.m_physicalDevice);
+    vkAllocateMemory(context.m_device, &memAlloc, nullptr,
+        &imMem);
+    vkBindImageMemory(context.m_device, inputIm,
+        imMem, 0);
+
+    m_Images.push_back(inputIm);
+    m_Images.resize(1);
+    DEBUG_LOG << "Image object is created" << std::endl;
+}
 void RenderBase::CreateFramebuffers(pv2::Context m_context)
 {
     m_swapChainFramebuffers.resize(m_ImageViews.size());
