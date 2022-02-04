@@ -1,4 +1,5 @@
 # Radio-Vulkan
+![Spiral galaxy NGC 2915 ](docs/images/movie27.gif)
 ## Introduction
 This project is curently a work in progress. The core idea is to provide a Vulkan-based HPG framework for DataCubes visualisation and explore the following advantages for HPC astrophysics data visualisation:
 

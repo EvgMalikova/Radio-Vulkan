@@ -42,6 +42,12 @@
 #include <nvvk/structs_vk.hpp>
 #endif
 
+enum PipelineTYPE
+{
+    Rasterisation,
+    RayTracing
+};
+
 //#ifdef LOG_All
 //const bool enableValidationLayers = false;
 //#else
@@ -165,6 +171,10 @@ public:
     {
         m_fitsFilename = filename;
     }
+    void SetPipelineType(PipelineTYPE type)
+    {
+        m_pipeType=type;
+    }
     void run()
     {
         hval = 0;
@@ -184,8 +194,12 @@ private:
         MOUSE_BUTTON_MIDDLE = 2,
         NUM_MOUSE_BUTTONIDX,
     };
+        
+        
+        
 
     SimpCamera m_cam;
+    PipelineTYPE   m_pipeType;
     //glm::mat4 world = glm::mat4(1);
     float x_rot, y_rot;
 
@@ -478,6 +492,7 @@ int main(int argc, char** argv)
 
     SampleApp app;
     app.SetFileName(FitsFileName);
+    app.SetPipelineType(PipelineTYPE::RayTracing);
 
     try {
         app.run();
