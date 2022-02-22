@@ -5,8 +5,6 @@
 #include <nvvk/shaders_vk.hpp>
 #include <nvvk/structs_vk.hpp>
 
-#include "VulkanBuffer.h"
-#include "VulkanTools.h"
 #include "helpers.hpp"
 
 #include "loaders.hpp"
@@ -141,9 +139,7 @@ void PipelineRasterize::CreateGraphicsPipeline(pv2::Context context, pv2::Render
     inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
     inputAssemblyState.primitiveRestartEnable = VK_FALSE;
 
-    /* VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
-             vks::initializers::pipelineInputAssemblyStateCreateInfo(
-                 VK_PRIMITIVE_TOPOLOGY_POINT_LIST, 0, VK_FALSE);*/
+ 
 
     VkPipelineRasterizationStateCreateInfo rasterizationState {};
     rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -155,17 +151,12 @@ void PipelineRasterize::CreateGraphicsPipeline(pv2::Context context, pv2::Render
     rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizationState.depthBiasEnable = VK_FALSE;
 
-    /*VkPipelineRasterizationStateCreateInfo rasterizationState =
-             vks::initializers::pipelineRasterizationStateCreateInfo(
-                 VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
-                 VK_FRONT_FACE_CLOCKWISE);*/
+  
     VkPipelineColorBlendAttachmentState blendAttachmentState {};
     blendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     blendAttachmentState.blendEnable = VK_FALSE;
 
-    /*VkPipelineColorBlendAttachmentState blendAttachmentState =
-             vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);*/
-
+ 
     VkPipelineColorBlendStateCreateInfo colorBlendState {};
     colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlendState.logicOpEnable = VK_FALSE;
@@ -177,10 +168,7 @@ void PipelineRasterize::CreateGraphicsPipeline(pv2::Context context, pv2::Render
     colorBlendState.blendConstants[2] = 0.0f;
     colorBlendState.blendConstants[3] = 0.0f;
 
-    /*
-         VkPipelineColorBlendStateCreateInfo colorBlendState =
-             vks::initializers::pipelineColorBlendStateCreateInfo(
-                 1, &blendAttachmentState);*/
+   
     VkPipelineDepthStencilStateCreateInfo depthStencilState {};
     depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencilState.depthTestEnable = VK_FALSE;
@@ -188,8 +176,7 @@ void PipelineRasterize::CreateGraphicsPipeline(pv2::Context context, pv2::Render
     depthStencilState.depthCompareOp = VK_COMPARE_OP_ALWAYS;
     depthStencilState.back.compareOp = VK_COMPARE_OP_ALWAYS;
 
-    //VkPipelineViewportStateCreateInfo viewportState =
-    //     vks::initializers::pipelineViewportStateCreateInfo(1, 1);
+ 
     VkPipelineMultisampleStateCreateInfo multisampleState {};
     multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampleState.sampleShadingEnable = VK_FALSE;
@@ -204,10 +191,7 @@ void PipelineRasterize::CreateGraphicsPipeline(pv2::Context context, pv2::Render
     dynamicState.pDynamicStates = dynamicStateEnables.data();
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
     dynamicState.flags = 0; //flags
-    /* VkPipelineDynamicStateCreateInfo dynamicState =
-             vks::initializers::pipelineDynamicStateCreateInfo(
-                 dynamicStateEnables);*/
-
+ 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
@@ -831,13 +815,21 @@ void RayTrace::STBCreate()
 
 void RayTrace::CreateShaders()
 {
-    modules[0] = vks::tools::loadShader("shaders/raytrace.rgen.spv", context.m_device);
+  auto rgenCode = pv::readFile("shaders/raytrace.rgen.spv");
+       auto rmissCode = pv::readFile("shaders/raytrace.rmiss.glsl.spv");
+       auto rchitCode = pv::readFile("shaders/material0.rchit.spv");
+    auto rintCode = pv::readFile("shaders/raytrace.rint.spv");
+       
+
+       
+    modules[0] = pv::createShaderModule(rgenCode, context.m_device);
     //  debugUtil.setObjectName(modules[0], "Ray generation module (raytrace.rgen.glsl.spv)");
-    modules[1] = vks::tools::loadShader("shaders/raytrace.rmiss.glsl.spv", context.m_device);
+    modules[1] = pv::createShaderModule(rmissCode, context.m_device);
     //  debugUtil.setObjectName(modules[1], "Miss module (raytrace.rmiss.glsl.spv)");
-    modules[2] = vks::tools::loadShader("shaders/material0.rchit.spv", context.m_device);
+    modules[2] = pv::createShaderModule(rchitCode, context.m_device);
     //  debugUtil.setObjectName(modules[2], "Material 0 shader module");
-    modules[3] = vks::tools::loadShader("shaders/raytrace.rint.spv", context.m_device);
+    modules[3] = pv::createShaderModule(rintCode, context.m_device);
+
     //   debugUtil.setObjectName(modules[3], "Material 0 intesection shader module");
     // First, we create objects that point to each of our shaders.
     // These are called "shader stages" in this context.

@@ -55,7 +55,7 @@ endif ()
 
 # Third party library dependencies
 
-set(SOURCE_FILES interactive.cpp window.cpp camera.cpp renderer.cpp context.cpp VulkanTools.cpp VulkanBuffer.cpp pipeline.cpp helpers.cpp loaders.cpp )
+set(SOURCE_FILES interactive.cpp window.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/c_utils)
@@ -168,7 +168,10 @@ if(BUILD_GUI)
  target_link_libraries(${PROJECT_NAME} glfw )
 endif()
 
-#file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders)
+
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/shaders)
+
 foreach(SHADER ${SHADERS})
 	get_filename_component(SHADER_NAME ${SHADER} NAME)
 

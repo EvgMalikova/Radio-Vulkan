@@ -6,9 +6,6 @@
 //#include <limits.h>
 //#include <fstream>
 
-#include "VulkanBuffer.h"
-#include "VulkanTools.h"
-
 #include "fitsReader.h"
 
 #include <chrono>
