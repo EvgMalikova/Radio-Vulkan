@@ -11,6 +11,15 @@ namespace pv {
 
 class PaticleLoader {
 public:
+    
+    struct Aabbs     // Buffer of all Aabb  vks::Buffer
+    		{
+    			int count;
+    			VkBuffer buffer;
+    			VkDeviceMemory memory;
+    		} aabbs;
+    void CreateAABBsBuffer(VkCommandPool commandPool, VkDevice device, VkPhysicalDevice phdevice, VkQueue queueGCT);
+    		
     /*Data reading */
     void LoadData(int world_size, int world_rank);
     //#ifdef USE_NVVK

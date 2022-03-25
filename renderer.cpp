@@ -58,6 +58,10 @@ void RenderBase::CreateSwapChain(pv2::Context m_context)
     m_Images.resize(imageCount);
     vkGetSwapchainImagesKHR(m_context.m_device, m_swapChain, &imageCount, m_Images.data());
 
+    // suitable depth format for further Depth attachment introduction
+    VkBool32 validDepthFormat = pv::getSupportedDepthFormat(m_context.m_physicalDevice, &m_depthFormat);
+    DEBUG_LOG<<validDepthFormat<<std::endl;
+    
     m_ImageFormat = surfaceFormat.format;
     m_Extent = extent;
 }
@@ -119,20 +123,28 @@ void RenderBase::CreateImageViews(pv2::Context m_context)
         createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; //VK_IMAGE_ASPECT_DEPTH_BIT;//
         createInfo.subresourceRange.baseMipLevel = 0;
         createInfo.subresourceRange.levelCount = 1;
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount = 1;
-
+        
+        /*if (m_ImageFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
+        		createInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        	}
+        */
+        
         if (vkCreateImageView(m_context.m_device, &createInfo, nullptr, &m_ImageViews[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create image views!");
         }
+        DEBUG_LOG<<"ImageView is created for "<<i<<std::endl;
     }
 }
 
 void RenderBase::CreateImage(pv2::Context context)
 {
+    
+    	
     VkImageCreateInfo image {};
     image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image.imageType = VK_IMAGE_TYPE_2D;
@@ -145,7 +157,8 @@ void RenderBase::CreateImage(pv2::Context context)
     image.samples = VK_SAMPLE_COUNT_1_BIT;
     image.tiling = VK_IMAGE_TILING_OPTIMAL;
     image.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-
+    //image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    
     VkImage inputIm;
 
     vkCreateImage(context.m_device, &image, nullptr, &inputIm);
@@ -167,6 +180,8 @@ void RenderBase::CreateImage(pv2::Context context)
 
     m_Images.push_back(inputIm);
     m_Images.resize(1);
+    
+    
     DEBUG_LOG << "Image object is created" << std::endl;
 }
 void RenderBase::CreateFramebuffers(pv2::Context m_context)
@@ -190,6 +205,7 @@ void RenderBase::CreateFramebuffers(pv2::Context m_context)
         if (vkCreateFramebuffer(m_context.m_device, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create framebuffer!");
         }
+        DEBUG_LOG<<"Created FrameBuffer "<<i<<std::endl;
     }
 }
 
@@ -199,7 +215,9 @@ void RenderBase::CleanUp(pv2::Context context)
     for (auto imageView : m_ImageViews) {
         vkDestroyImageView(context.m_device, imageView, nullptr);
     }
-
+    m_Images.resize(0);
+    m_ImageViews.resize(0);
+    if (context.GetInteractive())
     vkDestroySwapchainKHR(context.m_device, m_swapChain, nullptr);
 }
 

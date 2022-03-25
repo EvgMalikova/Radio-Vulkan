@@ -14,6 +14,8 @@
 // static char*
 // data_dir="/group/director2185/emalikova/particle-based-vis/data";
 
+
+
 struct Aabb {
     glm::vec3 minimum;
     glm::vec3 maximum;
@@ -22,6 +24,7 @@ struct Aabb {
 struct Vertex {
     glm::vec4 pos;
     glm::vec4 color;
+    
 
     static VkVertexInputBindingDescription getBindingDescription()
     {

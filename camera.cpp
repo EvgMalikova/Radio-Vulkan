@@ -2,6 +2,8 @@
 #include "helpers.hpp"
 #include <algorithm>
 #include <chrono>
+#include <cstring>
+
 
 template <typename T>
 int sgn(T val)

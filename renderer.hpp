@@ -57,10 +57,14 @@ public:
 
     // void CleanupSwapChain(pv2::Context context);
     void CleanUp(pv2::Context context);
-
+    VkFormat GetDepthFormat(){return m_depthFormat;};
+    VkFormat GetColorFormat(){return m_ImageFormat;};
+    VkImageView GetImageView(int i){return m_ImageViews[i];};
+    std::vector<VkImageView> m_ImageViews;
 private:
     GLFWwindow* m_window;
-    std::vector<VkImageView> m_ImageViews;
+    
+    VkFormat m_depthFormat;
 
     //created only for interactive
 };

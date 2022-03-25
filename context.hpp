@@ -10,8 +10,20 @@
 #include <nvvk/error_vk.hpp>
 #include <nvvk/structs_vk.hpp>
 #endif
+#include <vulkan/vulkan.h>
 
 namespace pv2 {
+    enum PipelineTYPE
+    {
+        Rasterisation,
+        RayTracing
+    };
+
+enum InteractionMode
+{
+    Headless,
+    Interactive
+};
 /*Graphics helper*/
 class Context {
 public:
@@ -59,7 +71,32 @@ public:
     void SetInteractive(bool v)
     {
         m_interactive = v;
+        if(m_interactive)
         AddExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    };
+    void SetPipelineType(pv2::PipelineTYPE type)
+    {
+        m_pipe = type;
+        
+        if(type==pv2::PipelineTYPE::RayTracing)
+        {
+             AddExtension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+                    AddExtension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+                    
+            	    // VK_KHR_acceleration_structure
+            		AddExtension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+            		AddExtension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+            		AddExtension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+            
+            		// VK_KHR_ray_tracing_pipeline
+            		AddExtension(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+            
+            		// VK_KHR_spirv_1_4
+            		AddExtension(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+            
+        }
+       
+       
     };
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
@@ -73,6 +110,11 @@ public:
 
     void PickPhysicalDevice(VkSurfaceKHR surface);
     void CreateLogicalDevice(VkSurfaceKHR surface);
+    
+    
+    //Ray tracing staff
+       VkPhysicalDeviceRayTracingPipelinePropertiesKHR  rayTracingPipelineProperties{};
+       VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
 
 private:
     void CreateInstance();
@@ -92,7 +134,18 @@ private:
     //};
 
     bool m_interactive;
+    pv2::PipelineTYPE m_pipe;
     VkPhysicalDeviceType m_selectedDeviceType = VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+    
+    
+   
+    
+    //void EnableRayTraceFeatures();
+    	VkPhysicalDeviceBufferDeviceAddressFeatures enabledBufferDeviceAddresFeatures{};
+    				       	VkPhysicalDeviceRayTracingPipelineFeaturesKHR enabledRayTracingPipelineFeatures{};
+    				       	VkPhysicalDeviceAccelerationStructureFeaturesKHR enabledAccelerationStructureFeatures{};
+    		
+    
 };
 }
 #endif //

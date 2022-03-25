@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.8)
 project(VulkanTest)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_GUI "Build interactive" ON)
 option(BUILD_MPI "Enable MPI support" OFF)
@@ -17,6 +19,9 @@ configure_file( config.h.in ${CMAKE_BINARY_DIR}/config.h)
 
 set (SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/21_shader_ubo.frag
              ${CMAKE_CURRENT_SOURCE_DIR}/shaders/21_shader_ubo.vert
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/26_shader_textures.vert
+             ${CMAKE_CURRENT_SOURCE_DIR}/shaders/26_shader_textures.frag
+             
 )
 
 if(BUILD_DOC)
@@ -54,9 +59,10 @@ endif ()
 
 
 # Third party library dependencies
-
-set(SOURCE_FILES interactive.cpp window.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp )
+#
+set(SOURCE_FILES interactive.cpp sampleApp.cpp window.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp postprocessing.cpp )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/render_doc)
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/c_utils)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/glm)

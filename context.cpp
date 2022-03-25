@@ -37,6 +37,8 @@ void Context::CleanUp()
 void Context::AddExtension(const char* name)
 {
     m_deviceExtensions.push_back(name);
+    DEBUG_LOG<<"Extension added "<<name<<std::endl;
+    
 }
 
 bool Context::CheckValidationLayerSupport()
@@ -171,6 +173,10 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
 
     std::cout << "There are " << deviceCount << " devices found" << std::endl;
     int devGPU = 0;
+    
+    
+        
+  
     for (const auto& device : devices) {
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
@@ -189,34 +195,28 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
         if ((deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) || (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) || (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)) {
             devGPU++;
         }
+        else{ //remove device from list
+            devices.erase (devices.begin()+devGPU,devices.begin()+devGPU+1);
+        }
 
-        if (deviceProperties.deviceType == m_selectedDeviceType)
+        if (deviceProperties.deviceType == m_selectedDeviceType){
             m_physicalDevice = device;
+        DEBUG_LOG << "The GPU selected " << deviceProperties.deviceType << std::endl;
     }
+    }
+    
+   DEBUG_LOG << "There are " << devGPU << " GPU devices found" << std::endl;
+    
+ 
+        
+   
 
-    /*
-          * There are 3 devices found
-          GPUs: Intel(R) UHD Graphics 630 (CFL GT2)
-          GPUs: llvmpipe (LLVM 12.0.0, 256 bits)
-          GPUs: GeForce RTX 2080
-      
-          */
-
-    // Run task per device
-    //deviceCount = gpuPhysicalDevices.size();
-    DEBUG_LOG << "There are " << devGPU << " GPU devices found" << std::endl;
-    /*for (int i = 0; i < deviceCount; i++) {
-           // initiate procedures for each device
-           SetUpQueue(i);
-           //contains create command pool
-           std::cout << "graphics queue is set" << std::endl;
-           GPULoadVertexBuffer(i);
-           std::cout << "Work is submitted per queue" << std::endl;
-         }*/
-
-    //m_physicalDevice = devices[2];
+   
+    
+  
     if (m_interactive) {
         for (const auto& device : devices) {
+            //Check with extension support
             if (pv::isDeviceSuitable(device, m_deviceExtensions, surface)) {
                 m_physicalDevice = device;
                 break;
@@ -226,15 +226,39 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
         if (m_physicalDevice == VK_NULL_HANDLE) {
             throw std::runtime_error("failed to find a suitable GPU!");
         }
+        
+        if (m_pipe==pv2::PipelineTYPE::RayTracing){ //Ray-tracing
+        
+            
+                 
+                 // Get ray tracing pipeline properties, which will be used later on in the sample
+                		rayTracingPipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+                 		VkPhysicalDeviceProperties2 deviceProperties2{};
+                 		deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+                 		deviceProperties2.pNext = &rayTracingPipelineProperties;
+                 		vkGetPhysicalDeviceProperties2(m_physicalDevice, &deviceProperties2);
+                 
+                 		// Get acceleration structure properties, which will be used later on in the sample
+                 		accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+                 		VkPhysicalDeviceFeatures2 deviceFeatures2{};
+                 		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+                 		deviceFeatures2.pNext = &accelerationStructureFeatures;
+                 		vkGetPhysicalDeviceFeatures2(m_physicalDevice, &deviceFeatures2);
+                 		
+                 
+                 std::cout << "GPUs for ray-tracing: " << deviceProperties2.properties.deviceName << " type " << deviceProperties2.properties.deviceType << std::endl;
+        
+             }
     }
 
-    else { //any device will do for headless rasterization, so we choose a selected one
-    }
+   
 
     DEBUG_LOG << "Proceed with " << m_interactive << " set up" << std::endl;
 }
 
 // Set up queue and logical device
+
+
 
 void Context::CreateLogicalDevice(VkSurfaceKHR surface)
 {
@@ -272,6 +296,9 @@ void Context::CreateLogicalDevice(VkSurfaceKHR surface)
     }
 
     VkPhysicalDeviceFeatures deviceFeatures {};
+    
+   
+    
 
     VkDeviceCreateInfo createInfo {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -280,6 +307,34 @@ void Context::CreateLogicalDevice(VkSurfaceKHR surface)
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
     createInfo.pEnabledFeatures = &deviceFeatures;
+    
+    if (m_pipe==pv2::RayTracing) {
+        
+    //enabling features for rqay-tracing
+   					// Enable features required for ray tracing using feature chaining via pNext		
+   					enabledBufferDeviceAddresFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+   					enabledBufferDeviceAddresFeatures.bufferDeviceAddress = VK_TRUE;
+   			
+   					enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+   					enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+   					enabledRayTracingPipelineFeatures.pNext = &enabledBufferDeviceAddresFeatures;
+   			
+   					enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+   					enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+   					enabledAccelerationStructureFeatures.pNext = &enabledRayTracingPipelineFeatures;
+   					enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE,
+   					enabledAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_TRUE,
+   					enabledAccelerationStructureFeatures.accelerationStructureIndirectBuild = VK_FALSE,
+   					enabledAccelerationStructureFeatures.accelerationStructureHostCommands = VK_FALSE,
+   					enabledAccelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_FALSE;
+   					
+   			
+   			createInfo.flags = 0;
+   			createInfo.pEnabledFeatures = nullptr;
+   			createInfo.pNext = &enabledAccelerationStructureFeatures;
+       		} 
+    
+    DEBUG_LOG << "There are  " <<m_deviceExtensions.size() << " extensions enabled " << std::endl;
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(m_deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = m_deviceExtensions.data();
@@ -291,9 +346,10 @@ void Context::CreateLogicalDevice(VkSurfaceKHR surface)
         createInfo.enabledLayerCount = 0;
     }
 
-    if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create logical device!");
-    }
+    //PFN_vkCreateDevice pvkCreateDevice=(PFN_vkCreateDevice)fpGetInstanceProcAddr(m_device, "vkCreateDevice");
+    
+    CHECK_VK(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) ) ;
+    DEBUG_LOG<<"Created logical device"<<std::endl;
     if (m_interactive) {
         vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_queueGCT);
         vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_queueP);

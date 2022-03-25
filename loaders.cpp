@@ -6,6 +6,7 @@
 //#include <limits.h>
 //#include <fstream>
 
+
 #include "fitsReader.h"
 
 #include <chrono>
@@ -31,6 +32,45 @@ double sampleNormal()
     return r;
 }
 
+void PaticleLoader::CreateAABBsBuffer(VkCommandPool commandPool, VkDevice device, VkPhysicalDevice phdevice, VkQueue queueGCT)
+{
+    	std::vector<Aabb> aabbss;
+    			   aabbss.reserve(vertices.size());
+    			   for(const auto& s : vertices)
+    			   {
+    			     Aabb aabb;
+    			     aabb.minimum = glm::vec3(s.pos) - glm::vec3(2.0);
+    			     aabb.maximum = glm::vec3(s.pos) + glm::vec3(2.0);
+    			     aabbss.emplace_back(aabb);
+    			   }
+    size_t  aabbBufferSize=aabbss.size()* sizeof(Aabb);
+    aabbs.count = static_cast<uint32_t>(aabbss.size());
+ std::cout<<aabbs.count<<std::endl;
+    VkDeviceSize bufferSize = sizeof(Aabb) * aabbss.size();
+    
+    // Aabb data
+    
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    pv::createBuffer(device, phdevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, aabbss.data(), (size_t)bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    pv::createBuffer(device, phdevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, aabbs.buffer, aabbs.memory);
+
+    pv::copyBuffer(stagingBuffer, aabbs.buffer, bufferSize, commandPool, device, queueGCT);
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+    
+    
+    std::cout<<"Aabb buffer created "<<std::endl;
+}
+
+			   
 void PaticleLoader::CreateVertexBuffer(VkCommandPool commandPool, VkDevice device, VkPhysicalDevice phdevice, VkQueue queueGCT)
 {
 
