@@ -1,9 +1,9 @@
-
+	
 
 #include "sampleApp.h"
 #include <dlfcn.h>
 #include <renderdoc_app.h>
-
+#include <mpi.h>
 RENDERDOC_API_1_1_2 *renderDocApi = NULL;
 
 
@@ -319,7 +319,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
     
       void SampleApp::mainLoop()
       {
-          //SaveFile(0);
+         
           while (!glfwWindowShouldClose(win.GetWindow())) {
               glfwPollEvents();
               drawFrame();
@@ -365,11 +365,11 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
       
  
  void SampleApp::Finalise(){
-     #ifdef USE_MPI
+     //#ifdef USE_MPI
      // Finalize the MPI environment.
      
      MPI_Finalize();
-     #endif
+     //#endif
  }
  
       void SampleApp::SetUpAll(int width,int height){
@@ -377,7 +377,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
           world_size=1;
           world_rank=0;
           
-          #ifdef USE_MPI
+          //#ifdef USE_MPI
           //TODO: further modify with reading
           // Initialize the MPI environment
               MPI_Init(NULL, NULL);
@@ -396,11 +396,11 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
               MPI_Get_processor_name(processor_name, &name_len);
           
               // Print off a hello world message
-             std::cout<<" processor "<< processor_name<<" rank "<< world_rank<< "out of "<< world_size<<std::endl;
+             DEBUG_LOG<<" processor "<< processor_name<<" rank "<< world_rank<< "out of "<< world_size<<std::endl;
           
           
           
-          #endif
+          //#endif
           
           InitCamera();
           if(m_mode==pv2::InteractionMode::Interactive)
@@ -425,39 +425,48 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
              // WriteMPIBuffer(img3,2);
               
               drawHeadless(0);
-              char* img=CopyMPIBuffer(0);
-              
-              
+ int count=ren.m_Extent.width*ren.m_Extent.height*4;
+
+              char* img= (char *) malloc(count);
+              CopyMPIBuffer(0,img);
+              WriteMPIBuffer(img,4+world_rank);
+              MPI_Barrier (MPI_COMM_WORLD);
               //Sending image data to main process
-              #ifdef USE_MPI
-              
-                  
+            //  #ifdef USE_MPI
+//              int count=ren.m_Extent.width*ren.m_Extent.height*4;
+
+                  char* str="test";
                   if (world_rank != 0) {
-                     
-                      MPI_Send(img, 1, MPI_CHAR, 0, world_rank, MPI_COMM_WORLD);
-                  } else  {
+                     DEBUG_LOG<<"Send from "<<world_rank<<" "<<str[0]<<std::endl;
+
+                      MPI_Send(img, count, MPI_CHAR, 0, world_rank, MPI_COMM_WORLD);
+DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
+                  } else if(world_rank==0)  {
                       mpi_images.reserve(world_size);
                       mpi_images.emplace ( mpi_images.begin(),img); //push first one
-                      for (int i=1;i<world_size;i++){
-                          char* imagedata2;
-                          MPI_Recv(imagedata2, 1, MPI_CHAR, i, i, MPI_COMM_WORLD,
+                      for (int ii=1;ii<world_size;ii++){
+                          char* imagedata2= (char *) malloc(count);
+                          MPI_Recv(imagedata2,count, MPI_CHAR, ii, ii, MPI_COMM_WORLD,
                                                                    MPI_STATUS_IGNORE);
-                          mpi_images.emplace ( mpi_images.begin()+i,imagedata2);
-                          printf("Process 0 received from process %d the image\n", i);
+                          mpi_images.emplace ( mpi_images.begin()+ii,imagedata2);
+                          DEBUG_LOG<<"Process "<<world_rank<<" received from process " <<ii<<std::endl;;
                       }
                      
-                     
-                  }
+}                
+                MPI_Barrier (MPI_COMM_WORLD);
+ if (world_rank == 0)
+ {
+
                   mpi_images.resize(world_size);
-                  DEBUG_LOG<<"Size of images in "<<mpi_images.size()<<" for rank "<<world_rank<<std::endl;
+                  DEBUG_LOG<<"Size of images"<<mpi_images.size()<<" for rank "<<world_rank<<std::endl;
                                       
-                                       
-                  if (world_rank == 0) {
+                                     
                       
                       //testing the result
                       DEBUG_LOG<<"Output of images stack "<<mpi_images.size()<<std::endl;
                       for (int i=0;i<mpi_images.size();i++){
                           WriteMPIBuffer(mpi_images[i],i);
+                      // DEBUG_LOG<< mpi_images[i]<<std::endl;
                       }
                                   
                   
@@ -471,7 +480,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
                      
                   }
                   
-                  #else
+              /*    #else
                   DEBUG_LOG<<"NO MPI pushing one image for world size "<<world_size <<std::endl;
                   mpi_images.reserve(world_size);
                   mpi_images.emplace ( mpi_images.begin(),img);
@@ -479,18 +488,14 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
                   WriteMPIBuffer(mpi_images[0],0);
                   #endif
             
-                    
+                */    
               
               if (renderDocApi) {
               			renderDocApi->EndFrameCapture(nullptr, nullptr);
               			renderDocApi->Shutdown();
               		}
               
-              /*drawHeadless(0);
-              SaveFile(1);
-              
-              drawHeadless(0);
-              SaveFile(2);*/
+        
               
               
               
@@ -499,215 +504,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
           cleanup();
          Finalise(); //finish MPI
       };
-      
-      
-      
-             void SampleApp::SaveFile(int l)
-             {
-                 
-                 char str[16];
-                 
-                 
-                 sprintf(str, "%d%s", l, "_headless.ppm");
-                 const char* filename = str;
-               
-                 const char* imagedata;
-                 std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-      
-                         // Create the linear tiled destination image to copy to and to read the memory from
-                         VkImageCreateInfo imgCreateInfo {};
-                         imgCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-                         
-                         imgCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-                         imgCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-                         imgCreateInfo.extent.width = ren.m_Extent.width;
-                         imgCreateInfo.extent.height = ren.m_Extent.height;
-                         imgCreateInfo.extent.depth = 1;
-                         imgCreateInfo.arrayLayers = 1;
-                         imgCreateInfo.mipLevels = 1;
-                         imgCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                         imgCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-                         imgCreateInfo.tiling = VK_IMAGE_TILING_LINEAR;
-                         imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                         // Create the image
-                         VkImage dstImage;
-                         CHECK_VK(vkCreateImage(context.m_device, &imgCreateInfo, nullptr, &dstImage));
-                         // Create memory to back up the image
-                         VkMemoryRequirements memRequirements;
-                         VkMemoryAllocateInfo memAllocInfo{};
-                         memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-                         VkDeviceMemory dstImageMemory;
-                         vkGetImageMemoryRequirements(context.m_device, dstImage, &memRequirements);
-                         memAllocInfo.allocationSize = memRequirements.size;
-                         // Memory must be host visible to copy from
-                         memAllocInfo.memoryTypeIndex = pv::getMemoryTypeIndex(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,context.m_physicalDevice);
-                         CHECK_VK(vkAllocateMemory(context.m_device, &memAllocInfo, nullptr, &dstImageMemory));
-                         CHECK_VK(vkBindImageMemory(context.m_device, dstImage, dstImageMemory, 0));
-      
-                      std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                         // Do the actual blit from the offscreen image to our host visible destination image
-                         VkCommandBufferAllocateInfo cmdBufAllocateInfo = pv::commandBufferAllocateInfo(pipe->m_commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-                         VkCommandBuffer copyCmd;
-                         CHECK_VK(vkAllocateCommandBuffers(context.m_device, &cmdBufAllocateInfo, &copyCmd));
-                         VkCommandBufferBeginInfo cmdBufInfo{};
-                        cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-                         
-                         CHECK_VK(vkBeginCommandBuffer(copyCmd, &cmdBufInfo));
-      
-                         // Transition destination image to transfer destination layout
-                         pv::InsertImageMemoryBarrier(
-                                 copyCmd,
-                                 dstImage,
-                                 0,
-                                 VK_ACCESS_TRANSFER_WRITE_BIT,
-                                 VK_IMAGE_LAYOUT_UNDEFINED,
-                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                 VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-      
-                         // colorAttachment.image is already in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, and does not need to be transitioned
-      
-                         VkImageCopy imageCopyRegion{};
-                         imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                         imageCopyRegion.srcSubresource.layerCount = 1;
-                         imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                         imageCopyRegion.dstSubresource.layerCount = 1;
-                         imageCopyRegion.extent.width = ren.m_Extent.width;
-                         imageCopyRegion.extent.height = ren.m_Extent.height;
-                         imageCopyRegion.extent.depth = 1;
-      std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                         vkCmdCopyImage(
-                                 copyCmd,
-                                 ren.m_Images[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                 dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                 1,
-                                 &imageCopyRegion);
-      
-                         // Transition destination image to general layout, which is the required layout for mapping the image memory later on
-                        pv::InsertImageMemoryBarrier(
-                                 copyCmd,
-                                 dstImage,
-                                 VK_ACCESS_TRANSFER_WRITE_BIT,
-                                 VK_ACCESS_MEMORY_READ_BIT,
-                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                 VK_IMAGE_LAYOUT_GENERAL,
-                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                 VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-      
-                         CHECK_VK(vkEndCommandBuffer(copyCmd));
-      
-                         pv::submitWork(copyCmd, context.m_queueGCT, context.m_device);
-      std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                         // Get layout of the image (including row pitch)
-                         VkImageSubresource subResource{};
-                         subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                         VkSubresourceLayout subResourceLayout;
-      
-                         vkGetImageSubresourceLayout(context.m_device, dstImage, &subResource, &subResourceLayout);
-      
-                         // Map image memory so we can start copying from it
-                         vkMapMemory(context.m_device, dstImageMemory, 0, VK_WHOLE_SIZE, 0, (void**)&imagedata);
-                         
-                         std::vector<char *> mpi_images;
-                         //Sending image data to main process
-                         #ifdef USE_MPI
-                         
-                             
-                             if (world_rank != 0) {
-                                
-                                 MPI_Send(&imagedata, 1, MPI_CHAR, 0, world_rank, MPI_COMM_WORLD);
-                             } else  {
-                                 mpi_images.reserve(world_size);
-                                 mpi_images.emplace ( mpi_images.begin(),&imagedata);
-                                 for (int i=1;i<world_size;i++){
-                                     char* imagedata2;
-                                     MPI_Recv(&imagedata2, 1, MPI_CHAR, i, i, MPI_COMM_WORLD,
-                                                                              MPI_STATUS_IGNORE);
-                                     mpi_images.emplace ( mpi_images.begin()+i,&imagedata);
-                                     printf("Process 0 received from process %d the image\n",
-                                                                            i);
-                                 }
-                                
-                                
-                             }
-                             if (world_rank != 0) {
-                                 
-                                 DEBUG_LOG<<"Image data was copied from "<<mpi_images.size()<<std::endl;
-                                 mpi_images.resize(world_size);
-                             }
-                        // Finalize the MPI environment.
-                        
-                        MPI_Finalize();
-                        #endif
-                         
-                         //loop through data
-                        char* outImData= new char[3*ren.m_Extent.width*ren.m_Extent.height];
-                        char* pOut=&outImData[0];
-                         
-                         imagedata += subResourceLayout.offset;
-      std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                         //ComputeTF
-      
-                 /*
-                         Save host visible framebuffer image to disk (ppm format)
-                 */
-      
-      
-      
-                         std::ofstream file(filename, std::ios::out | std::ios::binary);
-      
-                         // ppm header
-                         file << "P6\n" << ren.m_Extent.width << "\n" << ren.m_Extent.height << "\n" << 255 << "\n";
-      
-                         // If source is BGR (destination is always RGB) and we can't use blit (which does automatic conversion), we'll have to manually swizzle color components
-                         // Check if source is BGR and needs swizzle
-                         std::vector<VkFormat> formatsBGR = { VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SNORM };
-                         const bool colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), VK_FORMAT_R8G8B8A8_UNORM) != formatsBGR.end());
-      
-                         
-                         std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                         // ppm binary pixel data
-                         for (int32_t y = 0; y < ren.m_Extent.height; y++) {
-                                 unsigned int *row = (unsigned int*)imagedata;
-                                 for (int32_t x = 0; x < ren.m_Extent.width; x++) {
-                                         if (colorSwizzle) {
-                                                 file.write((char*)row + 2, 1);
-                                                 memcpy(pOut, (char*)row+2, 1);
-                                                 file.write((char*)row + 1, 1);
-                                                 memcpy(pOut, (char*)row+1, 1);
-                                                 file.write((char*)row, 1);
-                                                 memcpy(pOut, (char*)row, 1);
-                                                 //printf("%x\n",(char*)row);
-                                                 //std::cout<<(char*)row<<std::endl;
-                                         }
-                                         else {
-                                                 file.write((char*)row, 3);
-                                                 memcpy(pOut, (char*)row, 3);
-                                                 //printf("%d\n",row);
-                                         }
-                                         row++; //for int
-                                         pOut+=3; //for char
-                                 }
-                                 imagedata += subResourceLayout.rowPitch;
-                         }
-                         std::cout<<"Conventionally copied"<<std::endl;
-                         file.close();
-      
-                         printf("Framebuffer image saved to %s\n", filename);
-      
-                         // Clean up resources
-                         vkUnmapMemory(context.m_device, dstImageMemory);
-      
-                      
-      
-                         vkFreeMemory(context.m_device, dstImageMemory, nullptr);
-                         vkDestroyImage(context.m_device, dstImage, nullptr);
-                         vkQueueWaitIdle(context.m_queueGCT);
-      
-      
-             }
+
              
              
                     void SampleApp::WriteMPIBuffer(char* imageData, int l)
@@ -725,7 +522,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
              
                     }
              
-         char* SampleApp::CopyMPIBuffer(int l)
+         char* SampleApp::CopyMPIBuffer(int l, char* img)
                      {
                          
                         
@@ -911,7 +708,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
                                  vkFreeMemory(context.m_device, dstImageMemory, nullptr);
                                  vkDestroyImage(context.m_device, dstImage, nullptr);
                                  vkQueueWaitIdle(context.m_queueGCT);
-                                 
+                                 memcpy(img,outImData,4*ren.m_Extent.width*ren.m_Extent.height);
                                  return outImData;
               
               
@@ -1167,8 +964,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
         if (vkQueueSubmit(context.m_queueGCT, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
-        //if (currentFrame==0)
-        //SaveFile(1);
+        
         
         DEBUG_LOG<<"Current frame "<<currentFrame<<std::endl;
 

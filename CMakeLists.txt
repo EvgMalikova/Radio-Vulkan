@@ -2,11 +2,15 @@ cmake_minimum_required(VERSION 3.8)
 project(VulkanTest)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+#set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#set(CMAKE_CXX_EXTENSIONS OFF)
+#enable_language(Fortran)
+
+find_package(MPI REQUIRED)
+add_definitions(-DOMPI_SKIP_MPICXX)
 
 option(BUILD_GUI "Build interactive" ON)
-option(BUILD_MPI "Enable MPI support" OFF)
+option(BUILD_MPI "Enable MPI support" ON)
 option(BUILD_NVVK "Enable NVVK support" OFF)
 
 option(BUILD_DOC "Build documentation" ON)
@@ -144,6 +148,7 @@ file(GLOB NVMATH_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvmath/*.cpp ${CMAKE_CURRENT
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/include)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/lib64)
+include_directories(/group/director2185/emalikova/particle-based-vis/INSTALL/include)
 
 #set(SOURCE_FILES hello_triangle.cpp)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${SPLOTCH_SOURCE} ${HELPER_SOURCE} ${NVMATH_SOURCE})
@@ -153,9 +158,11 @@ if(BUILD_GUI)
   add_definitions(-DUSE_GLFW)
 endif()
 
-if(BUILD_MPI)
-  add_definitions(-DUSE_MPI)
-endif()
+##if(BUILD_MPI)
+ # find_package(MPI REQUIRED)
+ # add_definitions(-DUSE_MPI)
+#add_definitions(-DOMPI_SKIP_MPICXX)
+#endif()
 
 if(BUILD_NVVK)
   add_definitions(-DUSE_NVVK)
@@ -168,9 +175,11 @@ if (Vulkan_FOUND)
   link_libraries (${Vulkan_LIBRARY})
 endif (Vulkan_FOUND)
 
-target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARY})
+target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARY} ${MPI_C_LIBRARIES})
+#MPI::MPI_CXX)
 target_link_libraries(${PROJECT_NAME} ${cfitsio} )
 if(BUILD_GUI)
+
  target_link_libraries(${PROJECT_NAME} glfw )
 endif()
 

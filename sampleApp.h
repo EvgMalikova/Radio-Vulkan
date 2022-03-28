@@ -4,12 +4,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <algorithm>
+/*#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+*/
 #include <memory>
 
 #include "loaders.hpp"
@@ -25,7 +26,7 @@
 //#include <limits.h>
 //#include <fstream>
 #include "fitsReader.h"
-#include "reader/reader.h"
+//#include "reader/reader.h"
 
 #include <chrono>
 
@@ -53,7 +54,7 @@ public:
     std::vector<char *> mpi_images;
     
     void Finalise();
-    char*  CopyMPIBuffer(int l);
+    char*  CopyMPIBuffer(int l, char* img);
     void WriteMPIBuffer(char* imagedata, int l);
     void generateResultOfMPI();
     
@@ -100,7 +101,7 @@ public:
       
       void SetUpAll(int width,int height);
       
-             void SaveFile(int l);
+
             
       
 
