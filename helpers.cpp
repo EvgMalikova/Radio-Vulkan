@@ -85,6 +85,28 @@ std::string error(VkResult errorCode)
         return imageView;
     }
     
+    VkImageView createImageView3D(VkDevice device, VkImage image, VkFormat format) {
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+        viewInfo.format = format;
+       
+        viewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+    
+        VkImageView imageView;
+        if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create texture image view!");
+        }
+    
+        return imageView;
+    }
+    
     
     
     void InsertImageMemoryBarrier(
@@ -159,6 +181,43 @@ imgCreateInfo.usage = usage;
 
     vkBindImageMemory(device, image, imageMemory, 0);
 }
+    		
+void createImage3D(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+    
+VkImageCreateInfo imgCreateInfo {};
+imgCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+
+imgCreateInfo.imageType = VK_IMAGE_TYPE_3D;
+imgCreateInfo.format = format;
+imgCreateInfo.extent.width = width;
+imgCreateInfo.extent.height = height;
+imgCreateInfo.extent.depth = depth;
+imgCreateInfo.arrayLayers = 1;
+imgCreateInfo.mipLevels = 1;
+imgCreateInfo.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+imgCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+imgCreateInfo.tiling = tiling;
+imgCreateInfo.usage = usage;
+imgCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateImage(device, &imgCreateInfo, nullptr, &image) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = pv::getMemoryTypeIndex(memRequirements.memoryTypeBits, properties, physicalDevice);
+
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(device, image, imageMemory, 0);
+}    		
     		
     
 VkBool32 getSupportedDepthFormat(VkPhysicalDevice physicalDevice,

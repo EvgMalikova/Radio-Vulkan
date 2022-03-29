@@ -33,7 +33,8 @@ struct QueueFamilyIndices {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
 };
-
+void createImage3D(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) ;
+VkImageView createImageView3D(VkDevice device, VkImage image, VkFormat format);
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format) ;
 void createImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) ;
 
