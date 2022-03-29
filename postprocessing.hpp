@@ -2,6 +2,46 @@
 #define POSTPROCESS_UP
 
 #include "pipeline.hpp"
+#include <array>
+/*
+ * For image processing as a result of MPI
+ */
+struct TexVertex {
+    glm::vec2 pos;
+    glm::vec3 color;
+    glm::vec3 texCoord;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(TexVertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(TexVertex, pos);
+
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(TexVertex, color);
+
+        attributeDescriptions[2].binding = 0;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[2].offset = offsetof(TexVertex, texCoord);
+
+        return attributeDescriptions;
+    }
+};
+
 
 
 class MPICollect: public PipelineBase {
@@ -10,11 +50,13 @@ public:
     ~MPICollect() {};
     //For final MPI processing
     
+    void GenerateTexture(uint8_t* data, std::vector< uint8_t*> images, int width, int height, int depth, int texChannels);
+    void GenerateSlices(int world_size);
     void CreateMPIDescriptorSetLayout(pv2::Context context);
     void CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase ren);
     void CreateTextureImageView(pv2::Context context) ;
     void CreateTextureSampler(pv2::Context context);
-    void CreateTextureImage(pv2::Context context, char* pixels, int texWidth, int texHeight, int texChannels) ;
+    void CreateTextureImage(pv2::Context context, std::vector< uint8_t*> pixels, int texWidth, int texHeight, int texChannels) ;
     
     void CreateVertexBuffer(pv2::Context context);
     void CreateIndexBuffer(pv2::Context context);
@@ -45,6 +87,9 @@ public:
    void SetCommandPool(VkCommandPool& p){
        m_commandPool=p;
    }
+   
+   std::vector<TexVertex> vertices;
+   std::vector<uint16_t> indices;
    
     private:
     std::string vertMPIShaderName = "shaders/26_shader_textures.vert.spv";

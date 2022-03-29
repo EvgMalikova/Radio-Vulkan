@@ -1091,8 +1091,23 @@ void PipelineBase::SaveImage(const char* filename, char*pixels, int imageSize, i
                                    
         // ppm header
         file << "P6\n" << texWidth << "\n" << texHeight << "\n" << 255 << "\n";       
-               
-      file.write(pixels, imageSize);
+       /*    unsigned char *row = (unsigned char*)pixels;
+           char* outImData= new char[3*texWidth*texHeight];
+           char* pOut=&outImData[0];
+           
+           for (int32_t y = 0; y < texHeight; y++) {
+             for (int32_t x = 0; x < texWidth; x++) {
+                       //file.write((char*)row, 3);
+                       memcpy(pOut, (char*)row, 3);
+                       //printf("%d\n",row);
+               }
+               row+=4; //for int
+               pOut+=3; //for char
+           }
+                                                   
+      file.write(outImData, imageSize);*/
+        file.write(pixels, imageSize);
+        
         file.close();
 }
 void PipelineBase::submitBuffers(pv2::Context context, int i)
@@ -1134,8 +1149,12 @@ void PipelineRasterize::CreateCommandBuffers(pv2::Context context, pv2::RenderBa
         renderPassInfo.framebuffer = ren.m_swapChainFramebuffers[i];
         renderPassInfo.renderArea.offset = { 0, 0 };
         renderPassInfo.renderArea.extent = ren.m_Extent;
+        VkClearValue clearColor= { { { 0.0f, 0.0f, 0.0f, 1.0f } } };
 
-        VkClearValue clearColor = { { { 0.0f, 0.0f, 0.0f, 1.0f } } };
+#ifdef USE_MPI
+         clearColor= { { { 0.0f, 0.0f, 0.0f, 0.0f } } };
+        
+        #endif
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = &clearColor;
 

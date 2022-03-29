@@ -4,59 +4,146 @@
 #include <stb_image.h>
 
 #include <algorithm>
-#include <array>
 
 
-/*
- * For image processing as a result of MPI
- */
-struct TexVertex {
-    glm::vec2 pos;
-    glm::vec3 color;
-    glm::vec2 texCoord;
 
-    static VkVertexInputBindingDescription getBindingDescription() {
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(TexVertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+template <typename T>
+class PerlinNoise
+{
+private:
+	uint32_t permutations[512];
+	T fade(T t)
+	{
+		return t * t * t * (t * (t * (T)6 - (T)15) + (T)10);
+	}
+	T lerp(T t, T a, T b)
+	{
+		return a + t * (b - a);
+	}
+	T grad(int hash, T x, T y, T z)
+	{
+		// Convert LO 4 bits of hash code into 12 gradient directions
+		int h = hash & 15;
+		T u = h < 8 ? x : y;
+		T v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+		return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+	}
+public:
+	PerlinNoise()
+	{
+		// Generate random lookup for permutations containing all numbers from 0..255
+		std::vector<uint8_t> plookup;
+		plookup.resize(256);
+		std::iota(plookup.begin(), plookup.end(), 0);
+		std::default_random_engine rndEngine(std::random_device{}());
+		std::shuffle(plookup.begin(), plookup.end(), rndEngine);
 
-        return bindingDescription;
-    }
+		for (uint32_t i = 0; i < 256; i++)
+		{
+			permutations[i] = permutations[256 + i] = plookup[i];
+		}
+	}
+	T noise(T x, T y, T z)
+	{
+		// Find unit cube that contains point
+		int32_t X = (int32_t)floor(x) & 255;
+		int32_t Y = (int32_t)floor(y) & 255;
+		int32_t Z = (int32_t)floor(z) & 255;
+		// Find relative x,y,z of point in cube
+		x -= floor(x);
+		y -= floor(y);
+		z -= floor(z);
 
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+		// Compute fade curves for each of x,y,z
+		T u = fade(x);
+		T v = fade(y);
+		T w = fade(z);
 
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(TexVertex, pos);
+		// Hash coordinates of the 8 cube corners
+		uint32_t A = permutations[X] + Y;
+		uint32_t AA = permutations[A] + Z;
+		uint32_t AB = permutations[A + 1] + Z;
+		uint32_t B = permutations[X + 1] + Y;
+		uint32_t BA = permutations[B] + Z;
+		uint32_t BB = permutations[B + 1] + Z;
 
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(TexVertex, color);
+		// And add blended results for 8 corners of the cube;
+		T res = lerp(w, lerp(v,
+			lerp(u, grad(permutations[AA], x, y, z), grad(permutations[BA], x - 1, y, z)), lerp(u, grad(permutations[AB], x, y - 1, z), grad(permutations[BB], x - 1, y - 1, z))),
+			lerp(v, lerp(u, grad(permutations[AA + 1], x, y, z - 1), grad(permutations[BA + 1], x - 1, y, z - 1)), lerp(u, grad(permutations[AB + 1], x, y - 1, z - 1), grad(permutations[BB + 1], x - 1, y - 1, z - 1))));
+		return res;
+	}
+};
 
-        attributeDescriptions[2].binding = 0;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[2].offset = offsetof(TexVertex, texCoord);
+// Fractal noise generator based on perlin noise above
+template <typename T>
+class FractalNoise
+{
+private:
+	PerlinNoise<float> perlinNoise;
+	uint32_t octaves;
+	T frequency;
+	T amplitude;
+	T persistence;
+public:
 
-        return attributeDescriptions;
-    }
+	FractalNoise(const PerlinNoise<T> &perlinNoise)
+	{
+		this->perlinNoise = perlinNoise;
+		octaves = 6;
+		persistence = (T)0.5;
+	}
+
+	T noise(T x, T y, T z)
+	{
+		T sum = 0;
+		T frequency = (T)1;
+		T amplitude = (T)1;
+		T max = (T)0;
+		for (uint32_t i = 0; i < octaves; i++)
+		{
+			sum += perlinNoise.noise(x * frequency, y * frequency, z * frequency) * amplitude;
+			max += amplitude;
+			amplitude *= persistence;
+			frequency *= (T)2;
+		}
+
+		sum = sum / max;
+		return (sum + (T)1.0) / (T)2.0;
+	}
 };
 
 
-const std::vector<TexVertex> vertices = {
+
+/*std::vector<TexVertex> vertices = {
     {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
     {{1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
     {{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
     {{-1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 };
 
-const std::vector<uint16_t> indices = {
+std::vector<uint16_t> indices = {
      2, 3, 0, 0, 1, 2
-};
+};*/
+
+void MPICollect::GenerateSlices(int world_size)
+{
+  for (int i=0;i<world_size;i++)
+  {
+    vertices.push_back({{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, float(i)/(world_size-1)}});
+    vertices.push_back({{1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, float(i)/(world_size-1)}});
+    vertices.push_back({{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, float(i)/(world_size-1)}});
+    vertices.push_back({{-1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, float(i)/(world_size-1)}});
+    
+    indices.push_back(2+i*4);
+    indices.push_back(3+i*4);
+    indices.push_back(0+i*4);
+    indices.push_back(0+i*4);
+    indices.push_back(1+i*4);
+    indices.push_back(2+i*4);
+  }
+  
+}
 
 /*Helpers*/
 
@@ -382,21 +469,60 @@ void MPICollect::CreateIndexBuffer(pv2::Context context) {
     vkFreeMemory(context.m_device, stagingBufferMemory, nullptr);
 }
 
+void MPICollect::GenerateTexture(uint8_t* data, std::vector< uint8_t*> images, int width, int height, int depth, int numChanel)
+{
+  
+  
+  		// Generate perlin based noise
+  		std::cout << "Generating " << width << " x " << height << " x " << depth << " noise texture..." << std::endl;
+  
+  
+  	
+  		//PerlinNoise<float> perlinNoise;
+  
+  		//const float noiseScale = static_cast<float>(rand() % 10) + 4.0f;
+  
 
-void MPICollect::CreateTextureImage(pv2::Context context, char* pixel, int texWidth, int texHeight, int texChannels) {
+  		for (int32_t z = 0; z < depth; z++)
+  		{
+  			for (int32_t y = 0; y < height; y++)
+  			{
+  				for (int32_t x = 0; x < width; x++)
+  				{
+  				  for (int32_t l = 0; l < numChanel; l++)
+  				  {
+                       // float nx = (float)x / (float)width;
+                    	//float ny = (float)y / (float)height;
+                    	//float nz = (float)z / (float)depth;
+                    
+                    	//float n = 20.0 * perlinNoise.noise(nx, ny, nz*l);
+                    
+                    	//n = n - floor(n);
+                        uint8_t* img=images[z];
+                    	data[l+x*numChanel + y * width*numChanel + z * width * height*numChanel] = static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
+                        
+                   }
+                  // data[numChanel-1+x*numChanel + y * width*numChanel + z * width * height*numChanel] = 255;//static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
+                                        
+  				  }
+  			}
+  		}
+  		
+  		
+}
+
+void MPICollect::CreateTextureImage(pv2::Context context, std::vector< uint8_t*> pixels, int texWidth, int texHeight, int texChannels) {
   
-    stbi_uc* pixels=(stbi_uc*)pixel;
-    VkDeviceSize imageSize = texWidth * texHeight* texChannels;
-  
+    //stbi_uc* pixels=(stbi_uc*)pixel;
+    int numLayers=4;
+    VkDeviceSize imageSize = texWidth * texHeight* texChannels*numLayers;
+    int texMemSize= texWidth * texHeight* pixels.size()*numLayers;
+    uint8_t *data = new uint8_t[texMemSize];
+    		memset(data, 0, texMemSize);
+  GenerateTexture(data, pixels,texWidth, texHeight, pixels.size(), numLayers);
             // int x, y, comp;
              
              //	stbi_uc*pixels = stbi_load_from_memory((stbi_uc*)pixel, texWidth*texHeight, &x, &y, &comp, STBI_rgb_alpha);
-             	        
-    //stbi_uc* pixels = stbi_load("text.ppm", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    DEBUG_LOG<<"Image size "<< texWidth<<", "<<texHeight<<", "<<texChannels<<std::endl;
-    if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
-    }
     
     
   
@@ -405,15 +531,16 @@ void MPICollect::CreateTextureImage(pv2::Context context, char* pixel, int texWi
     VkDeviceMemory stagingBufferMemory;
     pv::createBuffer(context.m_device,context.m_physicalDevice,imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
-    char* data;
-    vkMapMemory(context.m_device, stagingBufferMemory, 0, imageSize, 0, (void**)&data);
-        memcpy(data, pixels, static_cast<size_t>(imageSize));
-       SaveImage("text.ppm",data,imageSize,texWidth,texHeight);
+    char* data2;
+    vkMapMemory(context.m_device, stagingBufferMemory, 0, VkDeviceSize(texMemSize), 0, (void**)&data2);
+        memcpy(data2, data, static_cast<size_t>(texMemSize));
+       //SaveImage("text.ppm",data,imageSize,texWidth,texHeight);
     vkUnmapMemory(context.m_device, stagingBufferMemory);
 
     //stbi_image_free(pixels);
+//void createImage3D(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) ;
 
-    pv::createImage(context.m_device, context.m_physicalDevice,texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_textureImage, m_textureImageMemory);
+    pv::createImage3D(context.m_device, context.m_physicalDevice,texWidth, texHeight, numLayers, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_textureImage, m_textureImageMemory);
 
     transitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,context);
     copyBufferToImage(stagingBuffer, m_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight),context);
@@ -427,7 +554,7 @@ void MPICollect::CreateTextureImage(pv2::Context context, char* pixel, int texWi
 
 
 void MPICollect::CreateTextureImageView(pv2::Context context) {
-    m_textureImageView = pv::createImageView(context.m_device, m_textureImage, VK_FORMAT_R8G8B8A8_UNORM);
+    m_textureImageView = pv::createImageView3D(context.m_device, m_textureImage, VK_FORMAT_R8G8B8A8_UNORM);
 }
 
 void MPICollect::CreateTextureSampler(pv2::Context context) {
@@ -455,7 +582,7 @@ void MPICollect::CreateTextureSampler(pv2::Context context) {
 }
 
 
-/*
+//Blending
 void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase ren)
 {
     auto vertShaderCode = pv::readFile(vertMPIShaderName);
@@ -511,7 +638,7 @@ void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase
     // Create pipeline
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState {};
     inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+    inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssemblyState.primitiveRestartEnable = VK_FALSE;
 
 
@@ -523,7 +650,7 @@ void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase
     rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizationState.lineWidth = 1.0f;
     rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;//VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizationState.depthBiasEnable = VK_FALSE;
 
 
@@ -611,7 +738,7 @@ void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase
     vkDestroyShaderModule(context.m_device, fragShaderModule, nullptr);
     vkDestroyShaderModule(context.m_device, vertShaderModule, nullptr);
 }
-*/
+
 
 void MPICollect::CreateCommandBuffers(pv2::Context context) {
        m_commandBuffers.resize(1);
@@ -667,7 +794,8 @@ void MPICollect::RecordCommandBuffer(pv2::RenderBase ren) {
        }
    }
    
-   
+  //Working non blend
+  /*
 void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase ren)
 {
     auto vertShaderCode = pv::readFile(vertMPIShaderName);
@@ -786,124 +914,5 @@ void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase
      vkDestroyShaderModule(context.m_device, fragShaderModule, nullptr);
      vkDestroyShaderModule(context.m_device, vertShaderModule, nullptr);
  }
-/*
-void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase ren)
-{
 
-auto vertShaderCode = pv::readFile(vertMPIShaderName);
- auto fragShaderCode = pv::readFile(fragMPIShaderName);
-
- VkShaderModule vertShaderModule = pv::createShaderModule(vertShaderCode, context.m_device);
- VkShaderModule fragShaderModule = pv::createShaderModule(fragShaderCode, context.m_device);
-
- VkPipelineShaderStageCreateInfo vertShaderStageInfo {};
- vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
- vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
- vertShaderStageInfo.module = vertShaderModule;
- vertShaderStageInfo.pName = "main";
-
- VkPipelineShaderStageCreateInfo fragShaderStageInfo {};
- fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
- fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
- fragShaderStageInfo.module = fragShaderModule;
- fragShaderStageInfo.pName = "main";
-
-      VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
-
-      VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-      vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-      auto bindingDescription = TexVertex::getBindingDescription();
-      auto attributeDescriptions = TexVertex::getAttributeDescriptions();
-
-      vertexInputInfo.vertexBindingDescriptionCount = 1;
-      vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-      vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-      vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-
-      VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-      inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-      inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-      inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-      VkViewport viewport{};
-      viewport.x = 0.0f;
-      viewport.y = 0.0f;
-      viewport.width = (float) ren.m_Extent.width;
-      viewport.height = (float) ren.m_Extent.height;
-      viewport.minDepth = 0.0f;
-      viewport.maxDepth = 1.0f;
-
-      VkRect2D scissor{};
-      scissor.offset = {0, 0};
-      scissor.extent = ren.m_Extent;
-
-      VkPipelineViewportStateCreateInfo viewportState{};
-      viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-      viewportState.viewportCount = 1;
-      viewportState.pViewports = &viewport;
-      viewportState.scissorCount = 1;
-      viewportState.pScissors = &scissor;
-
-      VkPipelineRasterizationStateCreateInfo rasterizer{};
-      rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-      rasterizer.depthClampEnable = VK_FALSE;
-      rasterizer.rasterizerDiscardEnable = VK_FALSE;
-      rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-      rasterizer.lineWidth = 1.0f;
-      rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-      rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-      rasterizer.depthBiasEnable = VK_FALSE;
-
-      VkPipelineMultisampleStateCreateInfo multisampling{};
-      multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisampling.sampleShadingEnable = VK_FALSE;
-      multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-      VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-      colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-      colorBlendAttachment.blendEnable = VK_FALSE;
-
-      VkPipelineColorBlendStateCreateInfo colorBlending{};
-      colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-      colorBlending.logicOpEnable = VK_FALSE;
-      colorBlending.logicOp = VK_LOGIC_OP_COPY;
-      colorBlending.attachmentCount = 1;
-      colorBlending.pAttachments = &colorBlendAttachment;
-      colorBlending.blendConstants[0] = 0.0f;
-      colorBlending.blendConstants[1] = 0.0f;
-      colorBlending.blendConstants[2] = 0.0f;
-      colorBlending.blendConstants[3] = 0.0f;
-
-      VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-      pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      pipelineLayoutInfo.setLayoutCount = 1;
-      pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
-
-      if (vkCreatePipelineLayout(context.m_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
-          throw std::runtime_error("failed to create pipeline layout!");
-      }
-
-      VkGraphicsPipelineCreateInfo pipelineInfo{};
-      pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      pipelineInfo.stageCount = 2;
-      pipelineInfo.pStages = shaderStages;
-      pipelineInfo.pVertexInputState = &vertexInputInfo;
-      pipelineInfo.pInputAssemblyState = &inputAssembly;
-      pipelineInfo.pViewportState = &viewportState;
-      pipelineInfo.pRasterizationState = &rasterizer;
-      pipelineInfo.pMultisampleState = &multisampling;
-      pipelineInfo.pColorBlendState = &colorBlending;
-      pipelineInfo.layout = m_pipelineLayout;
-      pipelineInfo.renderPass = ren.m_renderPass;
-      pipelineInfo.subpass = 0;
-      pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-      if (vkCreateGraphicsPipelines(context.m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) {
-          throw std::runtime_error("failed to create graphics pipeline!");
-      }
-
-      vkDestroyShaderModule(context.m_device, fragShaderModule, nullptr);
-      vkDestroyShaderModule(context.m_device, vertShaderModule, nullptr);
-  }
 */

@@ -6,8 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_CXX_EXTENSIONS OFF)
 #enable_language(Fortran)
 
-find_package(MPI REQUIRED)
-add_definitions(-DOMPI_SKIP_MPICXX)
+
 
 option(BUILD_GUI "Build interactive" ON)
 option(BUILD_MPI "Enable MPI support" ON)
@@ -158,11 +157,10 @@ if(BUILD_GUI)
   add_definitions(-DUSE_GLFW)
 endif()
 
-##if(BUILD_MPI)
- # find_package(MPI REQUIRED)
- # add_definitions(-DUSE_MPI)
-#add_definitions(-DOMPI_SKIP_MPICXX)
-#endif()
+if(BUILD_MPI)
+find_package(MPI REQUIRED)
+add_definitions(-DOMPI_SKIP_MPICXX)
+endif()
 
 if(BUILD_NVVK)
   add_definitions(-DUSE_NVVK)
@@ -175,8 +173,11 @@ if (Vulkan_FOUND)
   link_libraries (${Vulkan_LIBRARY})
 endif (Vulkan_FOUND)
 
-target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARY} ${MPI_C_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARY})# ${MPI_C_LIBRARIES})
 #MPI::MPI_CXX)
+if(BUILD_MPI)
+target_link_libraries(${PROJECT_NAME} ${MPI_C_LIBRARIES})
+endif()
 target_link_libraries(${PROJECT_NAME} ${cfitsio} )
 if(BUILD_GUI)
 

@@ -44,18 +44,20 @@
 #include <nvvk/structs_vk.hpp>
 #endif
 const int MAX_FRAMES_IN_FLIGHT = 1;
-
+//typedef mpi_image
 class SampleApp {
 public:
     
     int world_size;
     int world_rank;
     
-    std::vector<char *> mpi_images;
+    std::vector<std::tuple<int,uint8_t *>> mpi_images;
+    std::vector<uint8_t*> images;
     
     void Finalise();
-    char*  CopyMPIBuffer(int l, char* img);
-    void WriteMPIBuffer(char* imagedata, int l);
+    void CopyMPIBuffer(int l, uint8_t* img);
+    void CopyRGBMPIBuffer(int l, uint8_t* img);
+    void WriteMPIBuffer(uint8_t* imagedata, int l, int count);
     void generateResultOfMPI();
     
     
