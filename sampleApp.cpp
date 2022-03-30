@@ -3,7 +3,7 @@
 #include "sampleApp.h"
 #include <dlfcn.h>
 #include <renderdoc_app.h>
-#ifdef USE_MPI
+#ifdef USE_MPIRV
 #include <mpi.h>
 #endif
 RENDERDOC_API_1_1_2 *renderDocApi = NULL;
@@ -367,7 +367,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
       
  
  void SampleApp::Finalise(){
-     #ifdef USE_MPI
+     #ifdef USE_MPIRV
      // Finalize the MPI environment.
      
      MPI_Finalize();
@@ -379,7 +379,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
           world_size=1;
           world_rank=0;
           
-          #ifdef USE_MPI
+          #ifdef USE_MPIRV
           //TODO: further modify with reading
           // Initialize the MPI environment
               MPI_Init(NULL, NULL);
@@ -434,7 +434,7 @@ int count2=ren.m_Extent.width*ren.m_Extent.height*3;
               //WriteMPIBuffer(img,4+world_rank);
               
               //Sending image data to main process
-              #ifdef USE_MPI
+              #ifdef USE_MPIRV
 MPI_Barrier (MPI_COMM_WORLD);
 
                   char* str="test";
@@ -446,10 +446,15 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                   } else if(world_rank==0)  {
                       mpi_images.reserve(world_size);
                       for (int i=0;i<world_size;i++)
-                          get<0>(mpi_images[i]) < 10000 //se big for further sorting
+                          std::get<0>(mpi_images[i]) < 10000; //se big for further sorting
+                      
                       mpi_images.emplace ( mpi_images.begin(),std::make_tuple(0,img)); //push first one
-                      for (int ii=1;ii<world_size;ii++){
-                          char* imagedata2= (char *) malloc(count);
+                      }
+//MPI_Barrier (MPI_COMM_WORLD);
+if(world_rank==0)  {
+
+for (int ii=1;ii<world_size;ii++){
+                          uint8_t* imagedata2= (uint8_t *) malloc(count);
                           MPI_Recv(imagedata2,count, MPI_CHAR, ii, ii, MPI_COMM_WORLD,
                                                                    MPI_STATUS_IGNORE);
                           mpi_images.emplace ( mpi_images.begin()+ii,std::make_tuple(ii,imagedata2));
@@ -457,7 +462,7 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                       }
                      
 }                
-                MPI_Barrier (MPI_COMM_WORLD);
+  //              MPI_Barrier (MPI_COMM_WORLD);
  if (world_rank == 0)
  {
                   std::sort(mpi_images.begin(), mpi_images.end());
@@ -468,10 +473,10 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                       
                       //testing the result
                       DEBUG_LOG<<"Output of images stack "<<mpi_images.size()<<std::endl;
-                      //for (int i=0;i<mpi_images.size();i++){
-                       //   WriteMPIBuffer(mpi_images[i],i);
-                      // DEBUG_LOG<< mpi_images[i]<<std::endl;
-                     // }
+                      for (int i=0;i<mpi_images.size();i++){
+                          WriteMPIBuffer(std::get<1>(mpi_images[i]),std::get<0>(mpi_images[i]),count);
+                       DEBUG_LOG<< std::get<0>(mpi_images[i])<<std::endl;
+                     }
                                   
                   
                           //TODO: postprocessing, currenly under implmentation
@@ -481,23 +486,18 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                   
                 uint8_t* imgF= (uint8_t *) malloc(count2);
                   CopyRGBMPIBuffer(0,imgF);
-                 WriteMPIBuffer(imgF,1,count2);/* */
+                 WriteMPIBuffer(imgF,3,count2);/* */
                      
                   }
                   
                  #else
                   DEBUG_LOG<<"NO MPI pushing one image for world size "<<world_size <<std::endl;
-                 /* mpi_images.reserve(world_size);
-                  mpi_images.emplace ( mpi_images.begin(),std::make_tuple(0,img));
-                mpi_images.resize(world_size);
-                  
-                  generateResultOfMPI();*/
-                                   
+                                                   
                                    
                
               uint8_t* imgF= (uint8_t *) malloc(count2);
                CopyRGBMPIBuffer(0,imgF);
-              WriteMPIBuffer(imgF,5,count2);
+              WriteMPIBuffer(imgF,6,count2);
                   #endif
             
                 
@@ -514,6 +514,8 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
               
           }
           cleanup();
+// MPI_Barrier (MPI_COMM_WORLD);
+
          Finalise(); //finish MPI
       };
 
@@ -979,7 +981,7 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                  
          
           vkDeviceWaitIdle(context.m_device);
-          DEBUG_LOG<<"Start processing"<<std::endl;
+          DEBUG_LOG<<"Start post processing"<<std::endl;
          // cleanupSwapChain();
         //  DEBUG_LOG<<"previous results "<<std::endl;
           

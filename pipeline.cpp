@@ -1151,7 +1151,7 @@ void PipelineRasterize::CreateCommandBuffers(pv2::Context context, pv2::RenderBa
         renderPassInfo.renderArea.extent = ren.m_Extent;
         VkClearValue clearColor= { { { 0.0f, 0.0f, 0.0f, 1.0f } } };
 
-#ifdef USE_MPI
+#ifdef USE_MPIRV
          clearColor= { { { 0.0f, 0.0f, 0.0f, 0.0f } } };
         
         #endif

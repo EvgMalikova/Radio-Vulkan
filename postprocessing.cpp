@@ -141,6 +141,8 @@ void MPICollect::GenerateSlices(int world_size)
     indices.push_back(0+i*4);
     indices.push_back(1+i*4);
     indices.push_back(2+i*4);
+DEBUG_LOG<<vertices[vertices.size()-1].pos.z<<", and cord "<<vertices[vertices.size()-1].texCoord.z<<std::endl;
+
   }
   
 }
@@ -499,7 +501,16 @@ void MPICollect::GenerateTexture(uint8_t* data, std::vector< uint8_t*> images, i
                     
                     	//n = n - floor(n);
                         uint8_t* img=images[z];
-                    	data[l+x*numChanel + y * width*numChanel + z * width * height*numChanel] = static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
+/*
+if(z>0)
+{char str[16];
+sprintf(str, "%d%s", z, "_texture.ppm");
+                        const char* filename = str;
+                        SaveImage(filename,(char*)img,depth*width*height*numChanel,width,height);
+}
+ */
+
+                   	data[l+x*numChanel + y * width*numChanel + z * width * height*numChanel] = static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
                         
                    }
                   // data[numChanel-1+x*numChanel + y * width*numChanel + z * width * height*numChanel] = 255;//static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
@@ -519,7 +530,10 @@ void MPICollect::CreateTextureImage(pv2::Context context, std::vector< uint8_t*>
     int texMemSize= texWidth * texHeight* pixels.size()*numLayers;
     uint8_t *data = new uint8_t[texMemSize];
     		memset(data, 0, texMemSize);
-  GenerateTexture(data, pixels,texWidth, texHeight, pixels.size(), numLayers);
+SaveImage("test1.ppm",(char*)pixels[0],texWidth * texHeight*numLayers,texWidth,texHeight);
+SaveImage("test2.ppm",(char*)pixels[1],texWidth * texHeight*numLayers,texWidth,texHeight);
+  
+GenerateTexture(data, pixels,texWidth, texHeight, pixels.size(), numLayers);
             // int x, y, comp;
              
              //	stbi_uc*pixels = stbi_load_from_memory((stbi_uc*)pixel, texWidth*texHeight, &x, &y, &comp, STBI_rgb_alpha);

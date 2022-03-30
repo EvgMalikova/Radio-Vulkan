@@ -159,6 +159,7 @@ endif()
 
 if(BUILD_MPI)
 find_package(MPI REQUIRED)
+  add_definitions(-DUSE_MPIRV)
 add_definitions(-DOMPI_SKIP_MPICXX)
 endif()
 
