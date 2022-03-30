@@ -122,6 +122,7 @@ void fitsReader::ReadFits(std::vector<particle_sim>& particles)
 
     float point[3];
     float bmin[3] = { 0, 0, 0 };
+    
     float norm = fmax(naxes[0], naxes[1]);
     printf("norm=%f\n", norm);
 
@@ -129,6 +130,8 @@ void fitsReader::ReadFits(std::vector<particle_sim>& particles)
 
     //todo get max and min velocity in z
     float bmax[3] = { naxes[0] / norm, naxes[1] / norm, float(naxes[2] / norm) }; //naxes[2]/norm
+    bmin[2]=float(mybegin);
+    
     float delta[3] = { 0.16, 0.16, 0.16 }; //{(bmax[0]-bmin[0])/naxes[0],(bmax[1]-bmin[1])/naxes[1],(bmax[2]-bmin[2])/naxes[2]};
 
     printf("del=%f,%f,%f\n", delta[1], delta[0], delta[2]);
@@ -184,8 +187,8 @@ void fitsReader::ReadFits(std::vector<particle_sim>& particles)
             p[1] = bmin[1] + delta[1] * j;
             p[2] = bmin[2] + delta[2] * k;
 
-            float norm = bmax[2] - bmin[2];
-            float vl = (p[2] - bmin[2]) / norm;
+            float norm = bmax[2] ;//- 0;//bmin[2];
+            float vl = p[2]/norm;//(p[2] - bmin[2]) / norm;
             int typeF = m_type;
             if (m_type == 2)
                 typeF = 0;
@@ -434,7 +437,7 @@ void fitsReader::CalculateRMS()
     //{
     calcShareGeneral(0, naxes[2], num_ranks_, rank, mybegin, myend);
     std::cout << rank << " reading " << mybegin << ", " << myend << " of total " << naxes[2] << std::endl;
-    int npart = nSlices * naxes[0] * naxes[1];
+    //int npart = nSlices * naxes[0] * naxes[1];
     //points.resize(npart);
 
     nSlices = myend - mybegin; //naxes[2]; //set currently number of slices
