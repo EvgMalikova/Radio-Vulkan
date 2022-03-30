@@ -130,10 +130,10 @@ void MPICollect::GenerateSlices(int world_size)
 {
   for (int i=0;i<world_size;i++)
   {
-    vertices.push_back({{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, float(i)/(world_size-1)}});
-    vertices.push_back({{1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, float(i)/(world_size-1)}});
-    vertices.push_back({{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, float(i)/(world_size-1)}});
-    vertices.push_back({{-1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, float(i)/(world_size-1)}});
+    vertices.push_back({{-1.0f, -1.0f, float(i)}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, float(i)/(world_size-1)}});
+    vertices.push_back({{1.0f, -1.0f, float(i)}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, float(i)/(world_size-1)}});
+    vertices.push_back({{1.0f, 1.0f, float(i)}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, float(i)/(world_size-1)}});
+    vertices.push_back({{-1.0f, 1.0f, float(i)}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, float(i)/(world_size-1)}});
     
     indices.push_back(2+i*4);
     indices.push_back(3+i*4);

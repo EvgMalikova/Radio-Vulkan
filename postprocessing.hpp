@@ -7,7 +7,7 @@
  * For image processing as a result of MPI
  */
 struct TexVertex {
-    glm::vec2 pos;
+    glm::vec3 pos;
     glm::vec3 color;
     glm::vec3 texCoord;
 
@@ -25,7 +25,7 @@ struct TexVertex {
 
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = offsetof(TexVertex, pos);
 
         attributeDescriptions[1].binding = 0;
