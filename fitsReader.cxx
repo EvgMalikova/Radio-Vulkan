@@ -130,10 +130,11 @@ void fitsReader::ReadFits(std::vector<particle_sim>& particles)
 
     //todo get max and min velocity in z
     float bmax[3] = { naxes[0] / norm, naxes[1] / norm, float(naxes[2] / norm) }; //naxes[2]/norm
-    bmin[2]=float(mybegin);
+    
     
     float delta[3] = { 0.16, 0.16, 0.16 }; //{(bmax[0]-bmin[0])/naxes[0],(bmax[1]-bmin[1])/naxes[1],(bmax[2]-bmin[2])/naxes[2]};
-
+    bmin[2]=float(mybegin)*delta[2];
+    
     printf("del=%f,%f,%f\n", delta[1], delta[0], delta[2]);
     float normilise = naxes[0] / naxes[2];
     int i, j, k;
@@ -431,7 +432,13 @@ void fitsReader::CalculateRMS()
 
     if (fits_read_keys_lng(fptr, "NAXIS", 1, 3, naxes, &nfound, &status))
         printerror(status);
-
+    minB[0]=0;
+    minB[1]=0;
+    minB[2]=0;
+    maxB[0]=0.16*naxes[0]+1.0;
+    maxB[1]=0.16*naxes[1]+1.0;
+    maxB[2]=0.16*naxes[2]+1.0;
+    
     //mpiMgr.calcShare (0, naxes[2], mybegin, myend);
     //void calcShare (int64 glo, int64 ghi, int64 &lo, int64 &hi) const
     //{

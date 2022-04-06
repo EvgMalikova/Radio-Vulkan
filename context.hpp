@@ -105,7 +105,11 @@ public:
 
         return VK_FALSE;
     }
-
+    
+    
+    void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free);
+    VkCommandBuffer  CreateCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin);
+    
     void CleanUp();
 
     void PickPhysicalDevice(VkSurfaceKHR surface);
@@ -121,8 +125,11 @@ private:
     bool CheckValidationLayerSupport();
 
     void SetupDebugMessenger();
+   
     std::vector<const char*> GetRequiredExtensions();
+    #ifdef USE_GLFW
     std::vector<const char*> GetGLFWExtensions();
+    #endif
     void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     bool m_enableValidationLayers;
     const std::vector<const char*> m_validationLayers = {

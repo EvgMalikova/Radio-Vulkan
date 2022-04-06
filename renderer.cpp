@@ -2,6 +2,7 @@
 #include <algorithm>
 
 namespace pv2 {
+#ifdef USE_GLFW
 void RenderBase::CreateSurface(pv2::Context m_context)
 {
     //if (glfwCreateWindowSurface(m_context.m_instance, win.GetWindow(), nullptr, &m_surface) != VK_SUCCESS) {
@@ -9,6 +10,7 @@ void RenderBase::CreateSurface(pv2::Context m_context)
         throw std::runtime_error("failed to create window surface!");
     }
 }
+
 
 void RenderBase::CreateSwapChain(pv2::Context m_context)
 {
@@ -65,6 +67,7 @@ void RenderBase::CreateSwapChain(pv2::Context m_context)
     m_ImageFormat = surfaceFormat.format;
     m_Extent = extent;
 }
+#endif
 
 void RenderBase::CreateRenderPass(pv2::Context m_context)
 {

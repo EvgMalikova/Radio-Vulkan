@@ -62,6 +62,8 @@ private:
     float min;
     float max;
     int type;
+    float minBound[3];
+    float maxBound[3];
 
     uint32_t numParticles;
     particle p_min;

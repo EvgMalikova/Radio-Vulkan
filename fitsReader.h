@@ -32,6 +32,20 @@ public:
     void ReadFits(std::vector<particle_sim>& particles);
     void CalculateRMS();
     int64 mybegin, myend;
+    void GetMinBound(float* minB)
+    {
+        minB[0]=this->minB[0];
+        minB[1]=this->minB[1];
+        minB[2]=this->minB[2];
+        
+    };
+    void GetMaxBound(float* maxB)
+       {
+           maxB[0]=this->maxB[0];
+           maxB[1]=this->maxB[1];
+           maxB[2]=this->maxB[2];
+           
+       };
     void SetMPI(int num_ranks_, int rank)
     {
         this->num_ranks_ = num_ranks_;
@@ -107,6 +121,8 @@ protected:
 
 private:
     int num_ranks_, rank;
+    float minB[3];
+    float maxB[3];
 
     std::string filename;
     char title[80];

@@ -2,12 +2,18 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include "helpers.hpp"
+
+#ifdef USE_GLFW
 #include <GLFW/glfw3.h>
+#endif
+
 #include <optional>
 #include <set>
-
+#define DEFAULT_FENCE_TIMEOUT 100000000000
 #include <vulkanStuct.h>
 namespace pv2 {
+    
+    
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
@@ -26,6 +32,57 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
         func(instance, debugMessenger, pAllocator);
     }
 }
+
+	VkCommandBuffer Context::CreateCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin)
+	{
+		VkCommandBufferAllocateInfo cmdBufAllocateInfo= pv::commandBufferAllocateInfo(pool, level, 1);
+		VkCommandBuffer cmdBuffer;
+		CHECK_VK(vkAllocateCommandBuffers(m_device, &cmdBufAllocateInfo, &cmdBuffer));
+		// If requested, also start recording for the new command buffer
+		if (begin)
+		{
+			VkCommandBufferBeginInfo cmdBufInfo = pv::commandBufferBeginInfo();
+			CHECK_VK(vkBeginCommandBuffer(cmdBuffer, &cmdBufInfo));
+		}
+		return cmdBuffer;
+	}
+			
+	
+
+	/**
+	* Finish command buffer recording and submit it to a queue
+		*/
+	void Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free)
+	{
+		if (commandBuffer == VK_NULL_HANDLE)
+		{
+			return;
+		}
+
+		CHECK_VK(vkEndCommandBuffer(commandBuffer));
+
+		VkSubmitInfo submitInfo {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffer;
+		// Create fence to ensure that the command buffer has finished executing
+		VkFenceCreateInfo fenceInfo{};
+		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		fenceInfo.flags = 0;//VK_FLAGS_NONE;
+		VkFence fence;
+		CHECK_VK(vkCreateFence(m_device, &fenceInfo, nullptr, &fence));
+		// Submit to the queue
+		CHECK_VK(vkQueueSubmit(queue, 1, &submitInfo, fence));
+		// Wait for the fence to signal that command buffer has finished executing
+		CHECK_VK(vkWaitForFences(m_device, 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT));
+		vkDestroyFence(m_device, fence, nullptr);
+		if (free)
+		{
+			vkFreeCommandBuffers(m_device, pool, 1, &commandBuffer);
+		}
+	}
+
+	
 
 void Context::CleanUp()
 {
@@ -66,7 +123,7 @@ bool Context::CheckValidationLayerSupport()
 
     return true;
 }
-
+#ifdef USE_GLFW
 std::vector<const char*> Context::GetGLFWExtensions()
 {
     uint32_t glfwExtensionCount = 0;
@@ -76,20 +133,22 @@ std::vector<const char*> Context::GetGLFWExtensions()
     std::vector<const char*> extension(glfwExtensions, glfwExtensions + glfwExtensionCount);
     return extension;
 }
-
+#endif
 std::vector<const char*> Context::GetRequiredExtensions()
 {
     std::vector<const char*> extensions;
+    #ifdef USE_GLFW
     if (m_interactive) {
         extensions = GetGLFWExtensions();
     }
-
+    #endif
     if (m_enableValidationLayers) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
     return extensions;
 }
+
 
 void Context::CreateInstance()
 {

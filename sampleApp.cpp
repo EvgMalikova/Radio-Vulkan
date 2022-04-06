@@ -3,9 +3,11 @@
 #include "sampleApp.h"
 #include <dlfcn.h>
 #include <renderdoc_app.h>
-#ifdef USE_MPIRV
+#ifdef USE_MPI
 #include <mpi.h>
 #endif
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 RENDERDOC_API_1_1_2 *renderDocApi = NULL;
 
 
@@ -235,11 +237,20 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
     
           //TODO
           //no depth attachement as far, only color
-         
+          #ifdef USE_GLFW
           if (m_mode==pv2::InteractionMode::Interactive)
+          {
+              
               ren.CreateSwapChain(context);
+              
+          }
+              
           else
               ren.CreateImage(context);
+          #else
+             m_mode=pv2::InteractionMode::Headless;
+             ren.CreateImage(context);
+          #endif
     
           ren.CreateImageViews(context);
           
@@ -367,7 +378,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
       
  
  void SampleApp::Finalise(){
-     #ifdef USE_MPIRV
+     #ifdef USE_MPI
      // Finalize the MPI environment.
      
      MPI_Finalize();
@@ -379,7 +390,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
           world_size=1;
           world_rank=0;
           
-          #ifdef USE_MPIRV
+          #ifdef USE_MPI
           //TODO: further modify with reading
           // Initialize the MPI environment
               MPI_Init(NULL, NULL);
@@ -434,7 +445,12 @@ int count2=ren.m_Extent.width*ren.m_Extent.height*3;
               //WriteMPIBuffer(img,4+world_rank);
               
               //Sending image data to main process
-              #ifdef USE_MPIRV
+              DEBUG_LOG<<"Test output of image"<<std::endl;
+              uint8_t* imgF= (uint8_t *) malloc(count2);
+               CopyRGBMPIBuffer(0,imgF);
+              WriteMPIBuffer(imgF,world_rank,count2);
+              
+              #ifdef USE_MPI
 MPI_Barrier (MPI_COMM_WORLD);
 
                   char* str="test";
@@ -446,15 +462,10 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                   } else if(world_rank==0)  {
                       mpi_images.reserve(world_size);
                       for (int i=0;i<world_size;i++)
-                          std::get<0>(mpi_images[i]) < 10000; //se big for further sorting
-                      
+                          get<0>(mpi_images[i]) < 10000 //se big for further sorting
                       mpi_images.emplace ( mpi_images.begin(),std::make_tuple(0,img)); //push first one
-                      }
-//MPI_Barrier (MPI_COMM_WORLD);
-if(world_rank==0)  {
-
-for (int ii=1;ii<world_size;ii++){
-                          uint8_t* imagedata2= (uint8_t *) malloc(count);
+                      for (int ii=1;ii<world_size;ii++){
+                          char* imagedata2= (char *) malloc(count);
                           MPI_Recv(imagedata2,count, MPI_CHAR, ii, ii, MPI_COMM_WORLD,
                                                                    MPI_STATUS_IGNORE);
                           mpi_images.emplace ( mpi_images.begin()+ii,std::make_tuple(ii,imagedata2));
@@ -462,7 +473,7 @@ for (int ii=1;ii<world_size;ii++){
                       }
                      
 }                
-  //              MPI_Barrier (MPI_COMM_WORLD);
+                MPI_Barrier (MPI_COMM_WORLD);
  if (world_rank == 0)
  {
                   std::sort(mpi_images.begin(), mpi_images.end());
@@ -473,10 +484,10 @@ for (int ii=1;ii<world_size;ii++){
                       
                       //testing the result
                       DEBUG_LOG<<"Output of images stack "<<mpi_images.size()<<std::endl;
-                      for (int i=0;i<mpi_images.size();i++){
-                          WriteMPIBuffer(std::get<1>(mpi_images[i]),std::get<0>(mpi_images[i]),count);
-                       DEBUG_LOG<< std::get<0>(mpi_images[i])<<std::endl;
-                     }
+                      //for (int i=0;i<mpi_images.size();i++){
+                       //   WriteMPIBuffer(mpi_images[i],i);
+                      // DEBUG_LOG<< mpi_images[i]<<std::endl;
+                     // }
                                   
                   
                           //TODO: postprocessing, currenly under implmentation
@@ -484,20 +495,26 @@ for (int ii=1;ii<world_size;ii++){
                   
                   
                   
-                uint8_t* imgF= (uint8_t *) malloc(count2);
-                  CopyRGBMPIBuffer(0,imgF);
-                 WriteMPIBuffer(imgF,3,count2);/* */
+                uint8_t* imgF2= (uint8_t *) malloc(count2);
+                  CopyRGBMPIBuffer(0,imgF2);
+                 WriteMPIBuffer(imgF2,9,count2);/* */
                      
                   }
                   
                  #else
                   DEBUG_LOG<<"NO MPI pushing one image for world size "<<world_size <<std::endl;
-                                                   
+             /* mpi_images.reserve(world_size);
+                  mpi_images.emplace ( mpi_images.begin(),std::make_tuple(0,img));
+                mpi_images.resize(world_size);
+               
+                  
+                  generateResultOfMPI();
+                         */          
                                    
                
-              uint8_t* imgF= (uint8_t *) malloc(count2);
-               CopyRGBMPIBuffer(0,imgF);
-              WriteMPIBuffer(imgF,6,count2);
+              uint8_t* imgF2= (uint8_t *) malloc(count2);
+               CopyRGBMPIBuffer(0,imgF2);
+              WriteMPIBuffer(imgF2,9,count2);
                   #endif
             
                 
@@ -514,8 +531,6 @@ for (int ii=1;ii<world_size;ii++){
               
           }
           cleanup();
-// MPI_Barrier (MPI_COMM_WORLD);
-
          Finalise(); //finish MPI
       };
 
@@ -903,7 +918,9 @@ for (int ii=1;ii<world_size;ii++){
         DEBUG_LOG<<"recreated as far "<<std::endl;
         cleanupSwapChain();
         DEBUG_LOG<<"recreated as far "<<std::endl;
+        #ifdef USE_GLFW
         ren.CreateSwapChain(context);
+        #endif
 
         ren.CreateImageViews(context);
         ren.CreateRenderPass(context);
@@ -981,25 +998,8 @@ for (int ii=1;ii<world_size;ii++){
                  
          
           vkDeviceWaitIdle(context.m_device);
-          DEBUG_LOG<<"Start post processing"<<std::endl;
-         // cleanupSwapChain();
-        //  DEBUG_LOG<<"previous results "<<std::endl;
-          
-          //TODO: further try with swap chain mode for interactive with MPI
-          // if (m_mode==pv2::InteractionMode::Interactive)
-          //              ren.CreateSwapChain(context);
-          //          else
-                        //
-                       //pipe->CreateCommandPool(context, ren);
-                  /* We use previous Image,Views, color render pass, framebuffers attached to image
-                   * ren.CreateImage(context);
-              
-                    ren.CreateImageViews(context);
-                    
-                    ren.CreateRenderPass(context);
-                    
-                    ren.CreateFramebuffers(context);
-                    * */
+          DEBUG_LOG<<"Start processing"<<std::endl;
+     
                     
                     //Initialise other postprocessing pipeline
                     //post_process->SetCommandPool(pipe->m_commandPool);
@@ -1021,13 +1021,28 @@ for (int ii=1;ii<world_size;ii++){
                      }
                      images.resize(world_size);
                      DEBUG_LOG<<"Images size "<<images.size()<<std::endl;
-                     post_process->GenerateSlices(world_size);
-                    post_process->CreateTextureImage(context,images,ren.m_Extent.width,ren.m_Extent.height,4);
+                     int numSl=world_size;
+                     post_process->GenerateSlices(numSl);//world_size);
+                   /* post_process->CreateTextureImage(context,images,ren.m_Extent.width,ren.m_Extent.height,4);
                     DEBUG_LOG<<"Texture created "<<std::endl;
                     post_process->CreateTextureImageView(context);
                     DEBUG_LOG<<"View created "<<std::endl;
                     post_process->CreateTextureSampler(context);
-                    DEBUG_LOG<<"Sampler created "<<std::endl;
+                    DEBUG_LOG<<"Sampler created "<<std::endl;*/
+                    int texWidth=ren.m_Extent.width;
+                    int texHeight=ren.m_Extent.height;
+                    int channel=4;
+                  /* stbi_uc* pixels1 = stbi_load("0_headless.ppm", &texWidth, &texHeight, &channel, STBI_rgb_alpha);
+                       stbi_uc* pixels2 = stbi_load("1_headless.ppm", &texWidth, &texHeight, &channel, STBI_rgb_alpha);
+                             
+                      std::vector< uint8_t*> pixel2;
+                      pixel2.push_back(pixels1);
+                      pixel2.push_back(pixels2);
+                      pixel2.resize(2);
+                      */
+                      
+                    post_process->SetImageFormat(VK_FORMAT_R8G8B8A8_UNORM,4);
+                    post_process->prepareNoiseTexture(context,ren.m_Extent.width,ren.m_Extent.height,numSl,images.data());
                     post_process->CreateVertexBuffer(context);
                     post_process->CreateIndexBuffer(context);
                     
@@ -1053,6 +1068,10 @@ for (int ii=1;ii<world_size;ii++){
                //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
           
         }
+
+
+
+
 
     void SampleApp::createSyncObjects()
     {

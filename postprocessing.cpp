@@ -1,10 +1,8 @@
 #include "helpers.hpp"
 #include "postprocessing.hpp"
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+
 
 #include <algorithm>
-
 
 
 template <typename T>
@@ -75,45 +73,218 @@ public:
 	}
 };
 
-// Fractal noise generator based on perlin noise above
-template <typename T>
-class FractalNoise
-{
-private:
-	PerlinNoise<float> perlinNoise;
-	uint32_t octaves;
-	T frequency;
-	T amplitude;
-	T persistence;
-public:
 
-	FractalNoise(const PerlinNoise<T> &perlinNoise)
+void MPICollect::prepareNoiseTexture(pv2::Context context, uint32_t width, uint32_t height, uint32_t depth2,uint8_t** pixel2)
 	{
-		this->perlinNoise = perlinNoise;
-		octaves = 6;
-		persistence = (T)0.5;
+		// A 3D texture is described as width x height x depth
+		texture.width     = width;
+		texture.height    = height;
+		texture.depth     = depth2;
+		texture.mipLevels = 1;
+		
+
+		CheckImageSupport(context,texture.format,texture.width,texture.height,depth2);
+
+		// Create optimal tiled target image
+		VkImageCreateInfo imageCreateInfo{};
+		imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageCreateInfo.imageType         = VK_IMAGE_TYPE_3D;
+		imageCreateInfo.format            = texture.format;
+		imageCreateInfo.mipLevels         = texture.mipLevels;
+		imageCreateInfo.arrayLayers       = 1;
+		imageCreateInfo.samples           = VK_SAMPLE_COUNT_1_BIT;
+		imageCreateInfo.tiling            = VK_IMAGE_TILING_OPTIMAL;
+		imageCreateInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
+		imageCreateInfo.extent.width      = texture.width;
+		imageCreateInfo.extent.height     = texture.height;
+		imageCreateInfo.extent.depth      = texture.depth;
+		// Set initial layout of the image to undefined
+		imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageCreateInfo.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		CHECK_VK(vkCreateImage(context.m_device, &imageCreateInfo, nullptr, &texture.image));
+		
+		
+
+		// Device local memory to back up image
+		VkMemoryAllocateInfo memAllocInfo{};
+		memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		VkMemoryRequirements memReqs      = {};
+		vkGetImageMemoryRequirements(context.m_device, texture.image, &memReqs);
+		memAllocInfo.allocationSize  = memReqs.size;
+		memAllocInfo.memoryTypeIndex = pv::getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, context.m_physicalDevice);
+		CHECK_VK(vkAllocateMemory(context.m_device, &memAllocInfo, nullptr, &texture.deviceMemory));
+		CHECK_VK(vkBindImageMemory(context.m_device, texture.image, texture.deviceMemory, 0));
+
+		// Create sampler
+		VkSamplerCreateInfo sampler{};
+		sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		sampler.magFilter           = VK_FILTER_LINEAR;
+		sampler.minFilter           = VK_FILTER_LINEAR;
+		sampler.mipmapMode          = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler.addressModeU        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler.addressModeV        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler.addressModeW        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		sampler.mipLodBias          = 0.0f;
+		sampler.compareOp           = VK_COMPARE_OP_NEVER;
+		sampler.minLod              = 0.0f;
+		sampler.maxLod              = 0.0f;
+		sampler.maxAnisotropy       = 1.0;
+		sampler.anisotropyEnable    = VK_FALSE;
+		sampler.borderColor         = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+		CHECK_VK(vkCreateSampler(context.m_device, &sampler, nullptr, &texture.sampler));
+
+		// Create image view
+		VkImageViewCreateInfo view{};
+		view.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		view.image                           = texture.image;
+		view.viewType                        = VK_IMAGE_VIEW_TYPE_3D;
+		view.format                          = texture.format;
+		view.components                      = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
+		view.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+		view.subresourceRange.baseMipLevel   = 0;
+		view.subresourceRange.baseArrayLayer = 0;
+		view.subresourceRange.layerCount     = 1;
+		view.subresourceRange.levelCount     = 1;
+		CHECK_VK(vkCreateImageView(context.m_device, &view, nullptr, &texture.view));
+
+		
+
+       
+		updateNoiseTexture(context,pixel2);
+       // else
+       //   GenerateTexture(data, pixel2,texWidth, texHeight, pixel2.size(), numLayers);
+	}
+	
+	void MPICollect::GeneratePerlin (uint8_t *data)
+	{// Generate perlin based noise
+			std::cout << "Generating " << texture.width << " x " << texture.height << " x " << texture.depth << " noise texture..." << std::endl;
+	
+			//auto tStart = std::chrono::high_resolution_clock::now();
+	
+			PerlinNoise<float>  perlinNoise;
+			
+	
+			const float noiseScale = static_cast<float>(rand() % 10) + 4.0f;
+	
+			for (int32_t z = 0; z < texture.depth; z++)
+			{
+				for (int32_t y = 0; y < texture.height; y++)
+				{
+					for (int32_t x = 0; x < texture.width; x++)
+					{
+						float nx = (float) x / (float) texture.width;
+						float ny = (float) y / (float) texture.height;
+						float nz = (float) z / (float) texture.depth;
+	
+						float n = 20.0 * perlinNoise.noise(nx, ny, nz);
+	
+						n = n - floor(n);
+	
+						for (int32_t l = 0; l < texture.numChannels ; l++)
+										  {
+						                   
+						                     int numChanel=texture.numChannels;
+						
+						                 	data[l+x*numChanel + y * texture.width*numChanel + z * texture.width * texture.height*numChanel] =static_cast<uint8_t>(floor(n * 255));
+						                 	//static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
+						                      
+						                 }
+						//data[x + y * texture.width + z * texture.width * texture.height] = static_cast<uint8_t>(floor(n * 255));
+					}
+				}
+			}
 	}
 
-	T noise(T x, T y, T z)
+	// Generate randomized noise and upload it to the 3D texture using staging
+	void MPICollect::updateNoiseTexture(pv2::Context context,uint8_t** pixel2)
 	{
-		T sum = 0;
-		T frequency = (T)1;
-		T amplitude = (T)1;
-		T max = (T)0;
-		for (uint32_t i = 0; i < octaves; i++)
-		{
-			sum += perlinNoise.noise(x * frequency, y * frequency, z * frequency) * amplitude;
-			max += amplitude;
-			amplitude *= persistence;
-			frequency *= (T)2;
-		}
+		const uint32_t texMemSize = texture.width * texture.height * texture.depth*texture.numChannels;
 
-		sum = sum / max;
-		return (sum + (T)1.0) / (T)2.0;
+		uint8_t *data = new uint8_t[texMemSize];
+		memset(data, 0, texMemSize);
+		
+		if (pixel2==nullptr) m_synthesize=true;
+		else m_synthesize=false;
+		
+		if(m_synthesize)
+        GeneratePerlin(data) ;
+		else
+		  GenerateTexture(data, pixel2);
+
+		
+		// Create a host-visible staging buffer that contains the raw image data
+		VkBuffer       stagingBuffer;
+		VkDeviceMemory stagingMemory;
+		
+		
+		
+		pv::createBuffer(context.m_device,context.m_physicalDevice,VkDeviceSize(texMemSize), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingMemory);
+		
+
+
+
+
+	
+		// Copy texture data into staging buffer
+		uint8_t *mapped;
+		CHECK_VK(vkMapMemory(context.m_device, stagingMemory, 0, VkDeviceSize(texMemSize), 0,(void**)&mapped));
+		memcpy(mapped, data, texMemSize);
+		vkUnmapMemory(context.m_device, stagingMemory);//memReqs.size
+
+		VkCommandBuffer copyCmd = context.CreateCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_commandPool,true);
+
+		// The sub resource range describes the regions of the image we will be transitioned
+		VkImageSubresourceRange subresourceRange = {};
+		subresourceRange.aspectMask              = VK_IMAGE_ASPECT_COLOR_BIT;
+		subresourceRange.baseMipLevel            = 0;
+		subresourceRange.levelCount              = 1;
+		subresourceRange.layerCount              = 1;
+
+		// Optimal image will be used as destination for the copy, so we must transfer from our
+		// initial undefined image layout to the transfer destination layout
+		pv::setImageLayout(
+		    copyCmd,
+		    texture.image,
+		    VK_IMAGE_LAYOUT_UNDEFINED,
+		    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		    subresourceRange);
+
+		// Copy 3D noise data to texture
+
+		// Setup buffer copy regions
+		VkBufferImageCopy bufferCopyRegion{};
+		bufferCopyRegion.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+		bufferCopyRegion.imageSubresource.mipLevel       = 0;
+		bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+		bufferCopyRegion.imageSubresource.layerCount     = 1;
+		bufferCopyRegion.imageExtent.width               = texture.width;
+		bufferCopyRegion.imageExtent.height              = texture.height;
+		bufferCopyRegion.imageExtent.depth               = texture.depth;
+
+		vkCmdCopyBufferToImage(
+		    copyCmd,
+		    stagingBuffer,
+		    texture.image,
+		    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		    1,
+		    &bufferCopyRegion);
+
+		// Change texture image layout to shader read after all mip levels have been copied
+		texture.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		pv::setImageLayout(
+		    copyCmd,
+		    texture.image,
+		    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		    texture.imageLayout,
+		    subresourceRange);
+
+		context.flushCommandBuffer(copyCmd, context.m_queueGCT, m_commandPool, true);
+
+		// Clean up staging resources
+		delete[] data;
+		vkFreeMemory(context.m_device, stagingMemory, nullptr);
+		vkDestroyBuffer(context.m_device, stagingBuffer, nullptr);
 	}
-};
-
-
 
 /*std::vector<TexVertex> vertices = {
     {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
@@ -130,17 +301,44 @@ void MPICollect::GenerateSlices(int world_size)
 {
   for (int i=0;i<world_size;i++)
   {
-    vertices.push_back({{-1.0f, -1.0f, float(i)}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, float(i)/(world_size-1)}});
-    vertices.push_back({{1.0f, -1.0f, float(i)}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, float(i)/(world_size-1)}});
-    vertices.push_back({{1.0f, 1.0f, float(i)}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, float(i)/(world_size-1)}});
-    vertices.push_back({{-1.0f, 1.0f, float(i)}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, float(i)/(world_size-1)}});
+   /* float l;
+    if (i==0) l=1.0;
+    else l=0.0;*/
     
-    indices.push_back(2+i*4);
-    indices.push_back(3+i*4);
-    indices.push_back(0+i*4);
-    indices.push_back(0+i*4);
-    indices.push_back(1+i*4);
-    indices.push_back(2+i*4);
+   /* 
+    vertices.push_back({{-1.0f, -1.0f, float(i-1)}, {i, l, 0.0f}, {1.0f, 0.0f, float(i)/(world_size)}});
+    vertices.push_back({{1.0f, -1.0f, float(i-1)}, {i, l, 0.0f}, {0.0f, 0.0f, float(i)/(world_size)}});
+    vertices.push_back({{1.0f, 1.0f, float(i-1)}, {i, l, 0.0f}, {0.0f, 1.0f, float(i)/(world_size)}});
+    vertices.push_back({{-1.0f, 1.0f, float(i-1)}, {i, l,0.0f}, {1.0f, 1.0f, float(i)/(world_size)}});
+    vertices.push_back({{-1.0f, -1.0f, float(i-1)},{i, l,0.0f}, {1.0f, 1.0f, float(i)/(world_size)}});
+    vertices.push_back({{ 1.0f,  1.0f, float(i-1)},{i, l,0.0f}, {1.0f, 1.0f, float(i)/(world_size)}});
+    
+    indices.push_back(2+i*6);
+    indices.push_back(3+i*6);
+    indices.push_back(4+i*6);
+    indices.push_back(0+i*6);
+    indices.push_back(1+i*6);
+    indices.push_back(2+i*6);
+    
+    indices.push_back(3+i*6);
+    indices.push_back(4+i*6);
+    indices.push_back(5+i*6);
+    
+    indices.push_back(4+i*6);
+    indices.push_back(5+i*6);
+    indices.push_back(0+i*6);*/
+    
+    vertices.push_back({{-1.0f, -1.0f, float(i)}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, float(i)/(world_size-1)}});
+     vertices.push_back({{1.0f, -1.0f, float(i)}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, float(i)/(world_size-1)}});
+     vertices.push_back({{1.0f, 1.0f, float(i)}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, float(i)/(world_size-1)}});
+     vertices.push_back({{-1.0f, 1.0f, float(i)}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, float(i)/(world_size-1)}});
+     
+     indices.push_back(2+i*4);
+     indices.push_back(3+i*4);
+     indices.push_back(0+i*4);
+     indices.push_back(0+i*4);
+     indices.push_back(1+i*4);
+     indices.push_back(2+i*4);
 DEBUG_LOG<<vertices[vertices.size()-1].pos.z<<", and cord "<<vertices[vertices.size()-1].texCoord.z<<std::endl;
 
   }
@@ -152,20 +350,7 @@ DEBUG_LOG<<vertices[vertices.size()-1].pos.z<<", and cord "<<vertices[vertices.s
  void MPICollect::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,pv2::Context context) {
      VkCommandBuffer commandBuffer = beginSingleTimeCommands(context);
  
-   /*  VkBufferImageCopy region{};
-     region.bufferOffset = 0;
-     region.bufferRowLength = 0;
-     region.bufferImageHeight = 0;
-     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-     region.imageSubresource.mipLevel = 0;
-     region.imageSubresource.baseArrayLayer = 0;
-     region.imageSubresource.layerCount = 1;
-     region.imageOffset = {0, 0, 0};
-     region.imageExtent = {
-         width,
-         height,
-         1
-     };*/
+
     
 VkBufferImageCopy region;
 	memset(&region, 0, sizeof(region));
@@ -317,7 +502,7 @@ void MPICollect::endSingleTimeCommands(VkCommandBuffer commandBuffer,pv2::Contex
      VkPipelineStageFlags sourceStage;
      VkPipelineStageFlags destinationStage;
  
-     if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
          barrier.srcAccessMask = 0;
          barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
  
@@ -386,8 +571,8 @@ for (size_t i = 0; i < size; i++) {
     
     VkDescriptorImageInfo imageInfo{};
          imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-         imageInfo.imageView = m_textureImageView;
-         imageInfo.sampler = m_textureSampler;
+         imageInfo.imageView = texture.view;
+         imageInfo.sampler = texture.sampler;
          
          
          std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
@@ -471,129 +656,111 @@ void MPICollect::CreateIndexBuffer(pv2::Context context) {
     vkFreeMemory(context.m_device, stagingBufferMemory, nullptr);
 }
 
-void MPICollect::GenerateTexture(uint8_t* data, std::vector< uint8_t*> images, int width, int height, int depth, int numChanel)
+void MPICollect::GenerateTexture(uint8_t* data, uint8_t** images)
 {
   
   
   		// Generate perlin based noise
-  		std::cout << "Generating " << width << " x " << height << " x " << depth << " noise texture..." << std::endl;
+  		std::cout << "Forming " << texture.width << " x " << texture.height << " x " << texture.depth << " noise texture with " <<texture.numChannels<<" channels" << std::endl;
   
   
-  	
-  		//PerlinNoise<float> perlinNoise;
-  
-  		//const float noiseScale = static_cast<float>(rand() % 10) + 4.0f;
   
 
-  		for (int32_t z = 0; z < depth; z++)
+  		for (int32_t z = 0; z < texture.depth; z++)
   		{
-  			for (int32_t y = 0; y < height; y++)
+  		  uint8_t* img=images[z];
+  			for (int32_t y = 0; y < texture.height; y++)
   			{
-  				for (int32_t x = 0; x < width; x++)
+  				for (int32_t x = 0; x < texture.width; x++)
   				{
-  				  for (int32_t l = 0; l < numChanel; l++)
+  				 for (int32_t l = 0; l < texture.numChannels; l++)
   				  {
-                       // float nx = (float)x / (float)width;
-                    	//float ny = (float)y / (float)height;
-                    	//float nz = (float)z / (float)depth;
-                    
-                    	//float n = 20.0 * perlinNoise.noise(nx, ny, nz*l);
-                    
-                    	//n = n - floor(n);
-                        uint8_t* img=images[z];
-/*
-if(z>0)
-{char str[16];
-sprintf(str, "%d%s", z, "_texture.ppm");
-                        const char* filename = str;
-                        SaveImage(filename,(char*)img,depth*width*height*numChanel,width,height);
-}
- */
+                     
+                     
 
-                   	data[l+x*numChanel + y * width*numChanel + z * width * height*numChanel] = static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
+                   	data[l+x*texture.numChannels + y * texture.width*texture.numChannels + z * texture.width * texture.height*texture.numChannels] = static_cast<uint8_t>(img[l+x*texture.numChannels + y * texture.width*texture.numChannels ]);////floor(n * 255));
                         
                    }
-                  // data[numChanel-1+x*numChanel + y * width*numChanel + z * width * height*numChanel] = 255;//static_cast<uint8_t>(img[l+x*numChanel + y * width*numChanel ]);////floor(n * 255));
-                                        
-  				  }
+               }
   			}
   		}
   		
   		
 }
 
-void MPICollect::CreateTextureImage(pv2::Context context, std::vector< uint8_t*> pixels, int texWidth, int texHeight, int texChannels) {
+void MPICollect::CheckImageSupport(pv2::Context context, VkFormat format, int width, int height, int depth)
+{
+  VkFormatProperties formatProperties;
+  		vkGetPhysicalDeviceFormatProperties(context.m_physicalDevice, format, &formatProperties);
+  		// Check if format supports transfer
+  		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_DST_BIT))
+  		{
+  			std::cout << "Error: Device does not support flag TRANSFER_DST for selected texture format!" << std::endl;
+  			return;
+  		}
+  		VkPhysicalDeviceProperties deviceProperties;
+  		vkGetPhysicalDeviceProperties(context.m_physicalDevice, &deviceProperties);
+  		// Check if GPU supports requested 3D texture dimensions
+  		uint32_t maxImageDimension3D(deviceProperties.limits.maxImageDimension3D);
+  		if (width > maxImageDimension3D || height > maxImageDimension3D || depth > maxImageDimension3D)
+  		{
+  			std::cout << "Error: Requested texture dimensions is greater than supported 3D texture dimension!" << std::endl;
+  			return;
+  		}
+}
+/*void MPICollect::CreateTextureImage(pv2::Context context, std::vector< uint8_t*> pixels, int texWidth, int texHeight, int numLayer) {
   
+    
+    CheckImageSupport(context,VK_FORMAT_R8_UNORM,texWidth , texHeight,3);
     //stbi_uc* pixels=(stbi_uc*)pixel;
-    int numLayers=4;
-    VkDeviceSize imageSize = texWidth * texHeight* texChannels*numLayers;
-    int texMemSize= texWidth * texHeight* pixels.size()*numLayers;
+    //int numLayers=4;
+    //VkDeviceSize imageSize = texWidth * texHeight* texChannels*numLayers;
+    int numLayers=1;
+    int texMemSize= texWidth * texHeight*numLayers* 3;//pixels.size();
     uint8_t *data = new uint8_t[texMemSize];
     		memset(data, 0, texMemSize);
-SaveImage("test1.ppm",(char*)pixels[0],texWidth * texHeight*numLayers,texWidth,texHeight);
-SaveImage("test2.ppm",(char*)pixels[1],texWidth * texHeight*numLayers,texWidth,texHeight);
+//SaveImage("test1.ppm",(char*)pixels[0],texWidth * texHeight*numLayers,texWidth,texHeight);
+//SaveImage("test2.ppm",(char*)pixels[1],texWidth * texHeight*numLayers,texWidth,texHeight);
   
-GenerateTexture(data, pixels,texWidth, texHeight, pixels.size(), numLayers);
             // int x, y, comp;
-             
-             //	stbi_uc*pixels = stbi_load_from_memory((stbi_uc*)pixel, texWidth*texHeight, &x, &y, &comp, STBI_rgb_alpha);
-    
-    
-  
+     
+    stbi_uc* pixels1 = stbi_load("0_headless.ppm", &texWidth, &texHeight, &numLayers, STBI_rgb_alpha);
+    stbi_uc* pixels2 = stbi_load("1_headless.ppm", &texWidth, &texHeight, &numLayers, STBI_rgb_alpha);
+    stbi_uc* pixels3 = stbi_load("1_headless.ppm", &texWidth, &texHeight, &numLayers, STBI_rgb_alpha);
+         
+   std::vector< uint8_t*> pixel2;
+   pixel2.push_back(pixels1);
+   pixel2.push_back(pixels2);
+   pixel2.push_back(pixels3);
+   pixel2.resize(3);
+   GenerateTexture(data, pixel2,texWidth, texHeight, pixel2.size(), numLayers);
+   
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    pv::createBuffer(context.m_device,context.m_physicalDevice,imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    pv::createBuffer(context.m_device,context.m_physicalDevice,VkDeviceSize(texMemSize), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
     char* data2;
-    vkMapMemory(context.m_device, stagingBufferMemory, 0, VkDeviceSize(texMemSize), 0, (void**)&data2);
+    CHECK_VK(vkMapMemory(context.m_device, stagingBufferMemory, 0, VkDeviceSize(texMemSize), 0, (void**)&data2));
         memcpy(data2, data, static_cast<size_t>(texMemSize));
        //SaveImage("text.ppm",data,imageSize,texWidth,texHeight);
     vkUnmapMemory(context.m_device, stagingBufferMemory);
 
-    //stbi_image_free(pixels);
-//void createImage3D(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) ;
 
-    pv::createImage3D(context.m_device, context.m_physicalDevice,texWidth, texHeight, numLayers, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_textureImage, m_textureImageMemory);
+    pv::createImage3D(context.m_device, context.m_physicalDevice,texWidth, texHeight, pixel2.size(), VK_FORMAT_R8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_textureImage, m_textureImageMemory);
 
-    transitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,context);
+    transitionImageLayout(m_textureImage, VK_FORMAT_R8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,context);
     copyBufferToImage(stagingBuffer, m_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight),context);
-    transitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,context);
+    transitionImageLayout(m_textureImage, VK_FORMAT_R8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,context);
 
     vkQueueWaitIdle(context.m_queueGCT);
     vkDestroyBuffer(context.m_device, stagingBuffer, nullptr);
     vkFreeMemory(context.m_device, stagingBufferMemory, nullptr);
 }
 
+*/
 
 
-void MPICollect::CreateTextureImageView(pv2::Context context) {
-    m_textureImageView = pv::createImageView3D(context.m_device, m_textureImage, VK_FORMAT_R8G8B8A8_UNORM);
-}
-
-void MPICollect::CreateTextureSampler(pv2::Context context) {
-    VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(context.m_physicalDevice, &properties);
-
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-
-    if (vkCreateSampler(context.m_device, &samplerInfo, nullptr, &m_textureSampler) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create texture sampler!");
-    }
-}
 
 
 //Blending
@@ -663,7 +830,7 @@ void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase
     rasterizationState.rasterizerDiscardEnable = VK_FALSE;
     rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizationState.lineWidth = 1.0f;
-    rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizationState.cullMode = VK_CULL_MODE_NONE;
     rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE;//VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizationState.depthBiasEnable = VK_FALSE;
 
@@ -736,7 +903,10 @@ void MPICollect::CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     // Additive blending
-    blendAttachmentState.colorWriteMask = 0xF;
+    blendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |            // VkColorComponentFlags    colorWriteMask
+    VK_COLOR_COMPONENT_G_BIT |
+    VK_COLOR_COMPONENT_B_BIT |
+    VK_COLOR_COMPONENT_A_BIT;
     blendAttachmentState.blendEnable = VK_TRUE;
     blendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
     blendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;

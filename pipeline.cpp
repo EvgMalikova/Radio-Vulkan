@@ -1,11 +1,12 @@
 #include "pipeline.hpp"
+#ifdef USE_NVVK	
 #include <nvvk/error_vk.hpp>
 #include <nvvk/images_vk.hpp>
 #include <nvvk/resourceallocator_vk.hpp> // For NVVK memory allocators
 #include <nvvk/shaders_vk.hpp>
 #include <nvvk/structs_vk.hpp>
-
-
+#endif
+#include <vulkanStuct.h>
 
 #include "helpers.hpp"
 
@@ -14,7 +15,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
-
+/*
 void PipelineRayTrace::CreateAccelerationStructureBuffer(pv2::Context context,AccelerationStructure &accelerationStructure, VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo)
 	{
 		VkBufferCreateInfo bufferCreateInfo{};
@@ -36,6 +37,7 @@ void PipelineRayTrace::CreateAccelerationStructureBuffer(pv2::Context context,Ac
 		vkAllocateMemory(context.m_device, &memoryAllocateInfo, nullptr, &accelerationStructure.memory);
 		vkBindBufferMemory(context.m_device, accelerationStructure.buffer, accelerationStructure.memory, 0);
 	}
+	*/
 #ifdef USE_NVVK	
 	nvvk::RaytracingBuilderKHR::BlasInput PipelineRayTrace::sphereToVkGeometryKHR(pv2::Context context, VkBuffer vertexBuffer,int num_vertices)
 	{
@@ -221,7 +223,7 @@ void PipelineRayTrace::CreateBottomLevelAccelerationStructure(pv2::Context conte
 		/*
 			The top level acceleration structure contains the scene's object instances
 		*/
-		
+/*		
 void PipelineRayTrace::CreateAccelerationStructure(pv2::Context context,AccelerationStructure& accelerationStructure, VkAccelerationStructureTypeKHR type, VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo)
 		{
 			// Buffer and memory
@@ -271,7 +273,7 @@ void PipelineRayTrace::CreateAccelerationStructure(pv2::Context context,Accelera
 			vkDestroyBuffer(context.m_device, accelerationStructure.buffer, nullptr);
 			vkDestroyAccelerationStructureKHR(context.m_device, accelerationStructure.handle, nullptr);
 		}
-
+*/
 void PipelineRayTrace::CreateTopLevelAccelerationStructure(pv2::Context context)
 		{
 		    
@@ -469,7 +471,7 @@ VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = {
 		
 		}
 		
-		PipelineRayTrace::RayTracingScratchBuffer PipelineRayTrace::CreateScratchBuffer(pv2::Context context, VkDeviceSize size)
+	/*	PipelineRayTrace::RayTracingScratchBuffer PipelineRayTrace::CreateScratchBuffer(pv2::Context context, VkDeviceSize size)
 			{
 				RayTracingScratchBuffer scratchBuffer{};
 		
@@ -501,6 +503,7 @@ VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = {
 		
 				return scratchBuffer;
 			}
+*/
 
 void PipelineRasterize::CreateDescriptorSets(pv2::Context context, int size, SimpCamera cam)
 {
@@ -703,7 +706,7 @@ void PipelineRayTrace::CreateShaderBindingTable(pv2::Context context, ShaderBind
 	shaderBindingTable.map(context.m_device);
 }
 
-void PipelineRayTrace::CreateShaderBindingTables(pv2::Context context) {
+/*void PipelineRayTrace::CreateShaderBindingTables(pv2::Context context) {
 		const uint32_t handleSize = context.rayTracingPipelineProperties.shaderGroupHandleSize;
 		const uint32_t handleSizeAligned = alignedSize(context.rayTracingPipelineProperties.shaderGroupHandleSize, context.rayTracingPipelineProperties.shaderGroupHandleAlignment);
 		const uint32_t groupCount = static_cast<uint32_t>(shaderGroups.size());
@@ -725,6 +728,7 @@ void PipelineRayTrace::CreateShaderBindingTables(pv2::Context context) {
 		
 		std::cout<<"Shader binding table created"<<std::endl;
 	}
+*/
 
 void PipelineRayTrace::CreateDescriptorSetLayout(pv2::Context context)
 {

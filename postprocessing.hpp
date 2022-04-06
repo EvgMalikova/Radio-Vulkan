@@ -46,18 +46,40 @@ struct TexVertex {
 
 class MPICollect: public PipelineBase {
 public:
-    MPICollect() { m_interactive = false; };
+    MPICollect() { m_interactive = false; m_synthesize=true;};
     ~MPICollect() {};
+    
+    struct Texture
+    	{
+    		VkSampler             sampler = VK_NULL_HANDLE;
+    		VkImage               image   = VK_NULL_HANDLE;
+    		VkImageLayout         imageLayout;
+    		VkDeviceMemory        deviceMemory = VK_NULL_HANDLE;
+    		VkImageView           view         = VK_NULL_HANDLE;
+    		VkFormat              format;
+    		uint32_t              width, height, depth;
+    		uint32_t              mipLevels;
+    		int numChannels;
+    	} texture;
+    	void SetImageFormat(VkFormat  f,int n)
+    	{
+    	    texture.format=f;
+    	    texture.numChannels=n;
+    	};
+    	void GeneratePerlin (uint8_t *data);
+    	void SetSynthetic(bool b){
+    	    m_synthesize=b;
+    	}
+    void prepareNoiseTexture(pv2::Context context, uint32_t width, uint32_t height, uint32_t depth, uint8_t** pixel2=nullptr);
+    void updateNoiseTexture(pv2::Context context,uint8_t** pixel2=nullptr);
+    void CheckImageSupport(pv2::Context context, VkFormat format, int width, int height, int depth);
     //For final MPI processing
     
-    void GenerateTexture(uint8_t* data, std::vector< uint8_t*> images, int width, int height, int depth, int texChannels);
+    void GenerateTexture(uint8_t* data, uint8_t** images);
     void GenerateSlices(int world_size);
     void CreateMPIDescriptorSetLayout(pv2::Context context);
     void CreateMPIGraphicsPipeline(pv2::Context context, pv2::RenderBase ren);
-    void CreateTextureImageView(pv2::Context context) ;
-    void CreateTextureSampler(pv2::Context context);
-    void CreateTextureImage(pv2::Context context, std::vector< uint8_t*> pixels, int texWidth, int texHeight, int texChannels) ;
-    
+        
     void CreateVertexBuffer(pv2::Context context);
     void CreateIndexBuffer(pv2::Context context);
     void CreateMPIDescriptorSets(pv2::Context context, int size, SimpCamera cam);
@@ -73,10 +95,7 @@ public:
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,pv2::Context context);
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, pv2::Context context);
     
-    VkImageView m_textureImageView;
-    VkImage m_textureImage;
-    VkDeviceMemory m_textureImageMemory;
-    VkSampler m_textureSampler;
+
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
@@ -94,6 +113,8 @@ public:
     private:
     std::string vertMPIShaderName = "shaders/26_shader_textures.vert.spv";
     std::string fragMPIShaderName = "shaders/26_shader_textures.frag.spv";
+    bool m_synthesize;
+    
 };
 
 

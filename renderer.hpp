@@ -41,16 +41,20 @@ public:
     ~RenderBase() {};
     void Initialize(pv2::Context& m_context)
     {
+        #ifdef USE_GLFW
         if (m_context.GetInteractive())
             CreateSurface(m_context);
-
+        #endif
         //m_context.PickPhysicalDevice(m_surface);
         //m_context.CreateLogicalDevice(m_surface);
     };
 
     void SaveImage(int ij, pv2::Context context, VkCommandPool commandPool, VkQueue queueG, FrameBufferAttachment colorAttachment);
+   
+    #ifdef USE_GLFW
     void CreateSurface(pv2::Context m_context);
     void CreateSwapChain(pv2::Context m_context);
+    #endif
     void CreateImageViews(pv2::Context m_context);
     void CreateRenderPass(pv2::Context m_context);
     void CreateFramebuffers(pv2::Context m_context);

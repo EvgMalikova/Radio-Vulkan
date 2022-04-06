@@ -149,8 +149,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/include)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/lib64)
 include_directories(/group/director2185/emalikova/particle-based-vis/INSTALL/include)
 
-#set(SOURCE_FILES hello_triangle.cpp)
+
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${SPLOTCH_SOURCE} ${HELPER_SOURCE} ${NVMATH_SOURCE})
+
 
 if(BUILD_GUI)
   find_package(glfw3 3.3 REQUIRED)
@@ -199,3 +200,20 @@ foreach(SHADER ${SHADERS})
 	)
 	target_sources(${PROJECT_NAME} PRIVATE shaders/${SHADER_NAME}.spv)
 endforeach()
+
+#Start testing
+
+enable_testing()
+
+set(MPITEST_FILES mpi_test.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp postprocessing.cpp )
+
+add_definitions(-DUSE_MPIRV)
+add_definitions(-DOMPI_SKIP_MPICXX)
+remove_definitions(-DUSE_GLFW)
+
+add_executable(mpi_test  ${MPITEST_FILES} ${SPLOTCH_SOURCE} )
+target_link_libraries(mpi_test ${Vulkan_LIBRARY})# ${MPI_C_LIBRARIES})
+target_link_libraries(mpi_test ${MPI_C_LIBRARIES})
+target_link_libraries(mpi_test  ${cfitsio} )
+
+add_test(MPITest mpi_test)

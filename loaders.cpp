@@ -180,6 +180,11 @@ void PaticleLoader::ReadData(int num_ranks_, int rank)
 
     this->max = fits.GetMax();
     this->min = fits.GetMin();
+    
+    fits.GetMinBound(this->minBound);
+    fits.GetMaxBound(this->maxBound);
+    
+    std::cout<<"Bounds "<<maxBound[0]<<" , "<<maxBound[1]<<" , "<<maxBound[2]<<std::endl;
     // this->rms=fits.GetRMS();
     std::cout << "in process " << rank << "of total " << num_ranks_
               << std::endl;
@@ -204,7 +209,7 @@ void PaticleLoader::PrepaireVertices()
     int num = 0;
     int skip_rate = 1;
 
-    p_min = particle(particle_data[0].x, particle_data[0].y, particle_data[0].z,
+    /*p_min = particle(particle_data[0].x, particle_data[0].y, particle_data[0].z,
         particle_data[0].r);
     p_max = particle(particle_data[0].x, particle_data[0].y, particle_data[0].z,
         particle_data[0].r);
@@ -230,8 +235,10 @@ void PaticleLoader::PrepaireVertices()
             if (pp.r > p_max.r)
                 p_max.r = pp.r;
         }
-    }
-
+    }*/
+p_min = particle(minBound[0],minBound[1],minBound[2],0.0);
+p_max = particle(maxBound[0],maxBound[1],maxBound[2],0.5);
+    
     float x_scale = p_max.x - p_min.x;
     float y_scale = p_max.y - p_min.y;
     float z_scale = p_max.z - p_min.z;
@@ -240,6 +247,8 @@ void PaticleLoader::PrepaireVertices()
     // TODO: scaling for fits
     /// r_scale * sc - carefull
 
+
+    
     glm::vec3 noise = glm::vec3(sampleNormal(), sampleNormal(), sampleNormal());
     m_center = glm::vec3((p_min.x + p_max.x) / 2, (p_min.y + p_max.y) / 2,
                    (p_min.z + p_max.z) / 2)

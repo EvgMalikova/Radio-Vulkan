@@ -165,7 +165,7 @@ public:
     void CreateShaderBindingTable(pv2::Context context, ShaderBindingTable& shaderBindingTable, uint32_t handleCount);
     
     
-    void CreateShaderBindingTables(pv2::Context context);
+   // void CreateShaderBindingTables(pv2::Context context);
     
     virtual void CreateDescriptorSetLayout(pv2::Context context);
     virtual void CreateDescriptorSets(pv2::Context context,int size, SimpCamera cam);
@@ -182,16 +182,16 @@ public:
     void CreateBottomLevelAccelerationStructure(pv2::Context context, VkBuffer vertexBuffer,int num_vertices);
     
 void CreateTopLevelAccelerationStructure(pv2::Context context);
-void CreateAccelerationStructureBuffer(pv2::Context context,AccelerationStructure &accelerationStructure, VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo);
-RayTracingScratchBuffer CreateScratchBuffer(pv2::Context context, VkDeviceSize size);
+//void CreateAccelerationStructureBuffer(pv2::Context context,AccelerationStructure &accelerationStructure, VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo);
+//RayTracingScratchBuffer CreateScratchBuffer(pv2::Context context, VkDeviceSize size);
 	
      AccelerationStructure bottomLevelAS{};
      AccelerationStructure topLevelAS{};
      
 
      private:
-         void CreateAccelerationStructure(pv2::Context context,AccelerationStructure& accelerationStructure, VkAccelerationStructureTypeKHR type, VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo);
-         void DeleteAccelerationStructure(pv2::Context context,AccelerationStructure& accelerationStructure);
+        // void CreateAccelerationStructure(pv2::Context context,AccelerationStructure& accelerationStructure, VkAccelerationStructureTypeKHR type, VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo);
+       //  void DeleteAccelerationStructure(pv2::Context context,AccelerationStructure& accelerationStructure);
       
        std::string raygenShaderName = "shaders/raygen.rgen.spv";
        std::string missShaderName = "shaders/miss.rmiss.spv";

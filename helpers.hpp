@@ -38,6 +38,15 @@ VkImageView createImageView3D(VkDevice device, VkImage image, VkFormat format);
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format) ;
 void createImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) ;
 
+void setImageLayout(
+			VkCommandBuffer cmdbuffer,
+			VkImage image,
+			VkImageLayout oldImageLayout,
+			VkImageLayout newImageLayout,
+			VkImageSubresourceRange subresourceRange,
+			VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
 inline VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(
 			VkDescriptorType type,
 			VkShaderStageFlags stageFlags,
@@ -159,7 +168,9 @@ bool checkDeviceExtensionSupport(VkPhysicalDevice device, std::vector<const char
 SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 
 VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+#ifdef USE_GLFW
 VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* win);
+#endif
 VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
 VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice device);
