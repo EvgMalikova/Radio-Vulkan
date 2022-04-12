@@ -39,7 +39,11 @@ public:
         m_interactive = true;
     };
     ~Context() {};
-
+    void SetMPI(int worldR,int worldS)
+{
+world_size=worldS;
+world_rank=worldR;
+}
     void Initialize()
     {
         CreateInstance();
@@ -121,6 +125,8 @@ public:
        VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
 
 private:
+    int world_size=1;
+    int world_rank=0;
     void CreateInstance();
     bool CheckValidationLayerSupport();
 

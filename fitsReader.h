@@ -116,7 +116,7 @@ protected:
     double media = 0;
     double rms = 0;
     long npix = 0;
-    long naxes[3];
+    long naxes[4];
     int nSlices;
 
 private:

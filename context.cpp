@@ -3,6 +3,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include "helpers.hpp"
 
+#ifdef USE_MPIRV
+#include <mpi.h>
+#endif
+
 #ifdef USE_GLFW
 #include <GLFW/glfw3.h>
 #endif
@@ -234,7 +238,7 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
     int devGPU = 0;
     
     
-        
+        std::vector<uint32_t> deviceIDs;
   
     for (const auto& device : devices) {
         VkPhysicalDeviceProperties deviceProperties;
@@ -253,7 +257,9 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
             * */
         if ((deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) || (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) || (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)) {
             devGPU++;
-        }
+        DEBUG_LOG<<deviceProperties.deviceID<<" Device id "<< world_rank<<std::endl;
+deviceIDs.push_back(deviceProperties.deviceID);         
+}
         else{ //remove device from list
             devices.erase (devices.begin()+devGPU,devices.begin()+devGPU+1);
         }
@@ -263,16 +269,32 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
         DEBUG_LOG << "The GPU selected " << deviceProperties.deviceType << std::endl;
     }
     }
-    
+   // deviceIDs.resize(devGPU);
    DEBUG_LOG << "There are " << devGPU << " GPU devices found" << std::endl;
-    
+/*   #ifdef USE_MPIRV 
+   if(devGPU>1){
+ if (world_rank ==0)
+{
+for (int i=1;i<world_size;i++)
+{
+MPI_Send(deviceIDs.data(), devGPU, MPI_INT, i, world_rank, MPI_COMM_WORLD);
+}
+}
+else{
+uint32_t* ids= (uint32_t *) malloc(devGPU);
+ MPI_Recv(ids,devGPU, MPI_INT, 0, 0, MPI_COMM_WORLD,     MPI_STATUS_IGNORE);
+DEBUG_LOG<<"Process "<<world_rank<<" has received id "<<ids[world_rank]<<std::endl;
+}
+}
+#endif
  
-        
+  */      
    
 
    
-    
-  
+    int ndev=world_rank;
+  m_physicalDevice=devices[ndev];
+ DEBUG_LOG<<"Assign "<<ndev<<" device"<<std::endl;
     if (m_interactive) {
         for (const auto& device : devices) {
             //Check with extension support
@@ -312,7 +334,7 @@ void Context::PickPhysicalDevice(VkSurfaceKHR surface)
 
    
 
-    DEBUG_LOG << "Proceed with " << m_interactive << " set up" << std::endl;
+    DEBUG_LOG << "Proceed with interactiv " << m_interactive << " set up" << std::endl;
 }
 
 // Set up queue and logical device

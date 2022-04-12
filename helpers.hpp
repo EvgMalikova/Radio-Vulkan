@@ -1,7 +1,9 @@
 
 #pragma once
 #define GLFW_INCLUDE_VULKAN
+#ifdef USE_GLFW
 #include <GLFW/glfw3.h>
+#endif
 #ifdef USE_NVVK
 #include "nvvk/context_vk.hpp"
 #include <nvvk/error_vk.hpp>

@@ -254,7 +254,7 @@ p_max = particle(maxBound[0],maxBound[1],maxBound[2],0.5);
                    (p_min.z + p_max.z) / 2)
         + noise;
 
-    float sc = 2.0; // 10.2; //for camera in 20
+    float sc = 1.2; //for camera in 20
     float scale = fmax(x_scale, y_scale);
     // scale=fmax(scale,z_scale);
     float zDefScale = 8;
@@ -273,7 +273,7 @@ p_max = particle(maxBound[0],maxBound[1],maxBound[2],0.5);
     // Set Camera parameters
 
     z_bounds = glm::vec2(-1.0 / zDefScale, 1.0 / zDefScale);
-    camDist = 1.5; // user defined distance adjustment
+    camDist = 10.5; // user defined distance adjustment
     cameraPos = glm::vec3(0, 0, z_bounds[0] - camDist);
     cameraTarget = glm::vec3(
         0.5, 1.0,

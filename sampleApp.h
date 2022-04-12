@@ -9,8 +9,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <vector>
 */
+#include <vector>
+
 #include <memory>
 
 #include "loaders.hpp"
@@ -32,9 +33,9 @@
 
 #include <tclap/CmdLine.h>
 
-#ifdef USE_MPI
-#include <mpi.h>
-#endif
+//#ifdef USE_MPIRV
+//#include <mpi.h>
+//#endif
 #ifdef USE_NVVK
 #include "nvvk/context_vk.hpp"
 #include <nvvk/descriptorsets_vk.hpp>

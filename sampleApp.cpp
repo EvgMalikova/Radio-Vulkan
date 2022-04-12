@@ -3,7 +3,7 @@
 #include "sampleApp.h"
 #include <dlfcn.h>
 #include <renderdoc_app.h>
-#ifdef USE_MPI
+#ifdef USE_MPIRV
 #include <mpi.h>
 #endif
 #define STB_IMAGE_IMPLEMENTATION
@@ -184,12 +184,17 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
           
           context.SetPipelineType(m_pipeType);
           context.Initialize(); //allocates all necessary extensions
-    
+          
+#ifdef USE_GLFW
           if (m_mode==pv2::InteractionMode::Interactive)
               ren.SetWindow(win.GetWindow());
           else
               ren.SetExtent(width, height);
-    
+    #else
+m_mode==pv2::InteractionMode::Headless;
+ ren.SetExtent(width, height);
+#endif
+
           ren.Initialize(context); //creates a surface 
     
           context.PickPhysicalDevice(ren.m_surface); //checks rasterization and ray-tracing
@@ -378,7 +383,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
       
  
  void SampleApp::Finalise(){
-     #ifdef USE_MPI
+     #ifdef USE_MPIRV
      // Finalize the MPI environment.
      
      MPI_Finalize();
@@ -390,7 +395,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
           world_size=1;
           world_rank=0;
           
-          #ifdef USE_MPI
+          #ifdef USE_MPIRV
           //TODO: further modify with reading
           // Initialize the MPI environment
               MPI_Init(NULL, NULL);
@@ -411,7 +416,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
               // Print off a hello world message
              DEBUG_LOG<<" processor "<< processor_name<<" rank "<< world_rank<< "out of "<< world_size<<std::endl;
           
-          
+          context.SetMPI(world_rank,world_size);
           
           #endif
           
@@ -450,7 +455,7 @@ int count2=ren.m_Extent.width*ren.m_Extent.height*3;
                CopyRGBMPIBuffer(0,imgF);
               WriteMPIBuffer(imgF,world_rank,count2);
               
-              #ifdef USE_MPI
+              #ifdef USE_MPIRV
 MPI_Barrier (MPI_COMM_WORLD);
 
                   char* str="test";
@@ -462,10 +467,10 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                   } else if(world_rank==0)  {
                       mpi_images.reserve(world_size);
                       for (int i=0;i<world_size;i++)
-                          get<0>(mpi_images[i]) < 10000 //se big for further sorting
+                          std::get<0>(mpi_images[i]) < 10000 ;//se big for further sorting
                       mpi_images.emplace ( mpi_images.begin(),std::make_tuple(0,img)); //push first one
                       for (int ii=1;ii<world_size;ii++){
-                          char* imagedata2= (char *) malloc(count);
+                          uint8_t* imagedata2= (uint8_t *) malloc(count);
                           MPI_Recv(imagedata2,count, MPI_CHAR, ii, ii, MPI_COMM_WORLD,
                                                                    MPI_STATUS_IGNORE);
                           mpi_images.emplace ( mpi_images.begin()+ii,std::make_tuple(ii,imagedata2));
@@ -1015,11 +1020,24 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                      // pLoader.CreateVertexBuffer(pipe->m_commandPool, context.m_device, context.m_physicalDevice, context.m_queueGCT); //would be different for ray-tracing
                      DEBUG_LOG << "All preliminary commands executed " <<std::endl;
                      
-                     for (int i=0;i<world_size;i++)
+                     int ts=(world_size-2)*3+2;
+                     int jj=1;
+                     for (int i=0;i<ts;i++)
                      {
+                         if(i==0)
                          images.push_back(std::get<1>(mpi_images[i]));
+                         else {
+                           if(i!=ts-1){
+                           images.push_back(std::get<1>(mpi_images[jj]));
+                           images.push_back(std::get<1>(mpi_images[jj]));
+                           images.push_back(std::get<1>(mpi_images[jj]));
+                           jj++;
+                           } else 
+                           images.push_back(std::get<1>(mpi_images[world_size-1]));
+
+                         }
                      }
-                     images.resize(world_size);
+                     images.resize(ts);
                      DEBUG_LOG<<"Images size "<<images.size()<<std::endl;
                      int numSl=world_size;
                      post_process->GenerateSlices(numSl);//world_size);
@@ -1042,7 +1060,7 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                       */
                       
                     post_process->SetImageFormat(VK_FORMAT_R8G8B8A8_UNORM,4);
-                    post_process->prepareNoiseTexture(context,ren.m_Extent.width,ren.m_Extent.height,numSl,images.data());
+                    post_process->prepareNoiseTexture(context,ren.m_Extent.width,ren.m_Extent.height,ts,images.data());
                     post_process->CreateVertexBuffer(context);
                     post_process->CreateIndexBuffer(context);
                     

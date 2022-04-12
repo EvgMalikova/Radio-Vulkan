@@ -81,8 +81,12 @@ void MPICollect::prepareNoiseTexture(pv2::Context context, uint32_t width, uint3
 		texture.height    = height;
 		texture.depth     = depth2;
 		texture.mipLevels = 1;
-		
+                 if (pixel2==nullptr) m_synthesize=true;
+                else m_synthesize=false;
 
+       	    /*   	if(!m_synthesize)
+                 texture.depth=(depth2-2)*3+2;		
+*/
 		CheckImageSupport(context,texture.format,texture.width,texture.height,depth2);
 
 		// Create optimal tiled target image
@@ -200,17 +204,19 @@ void MPICollect::prepareNoiseTexture(pv2::Context context, uint32_t width, uint3
 	{
 		const uint32_t texMemSize = texture.width * texture.height * texture.depth*texture.numChannels;
 
+
 		uint8_t *data = new uint8_t[texMemSize];
 		memset(data, 0, texMemSize);
 		
 		if (pixel2==nullptr) m_synthesize=true;
 		else m_synthesize=false;
 		
-		if(m_synthesize)
+		if(m_synthesize){
         GeneratePerlin(data) ;
-		else
+}
+		else {
 		  GenerateTexture(data, pixel2);
-
+}
 		
 		// Create a host-visible staging buffer that contains the raw image data
 		VkBuffer       stagingBuffer;
@@ -677,7 +683,7 @@ void MPICollect::GenerateTexture(uint8_t* data, uint8_t** images)
   				  {
                      
                      
-
+                        
                    	data[l+x*texture.numChannels + y * texture.width*texture.numChannels + z * texture.width * texture.height*texture.numChannels] = static_cast<uint8_t>(img[l+x*texture.numChannels + y * texture.width*texture.numChannels ]);////floor(n * 255));
                         
                    }

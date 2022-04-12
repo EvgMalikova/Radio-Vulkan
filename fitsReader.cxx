@@ -430,8 +430,10 @@ void fitsReader::CalculateRMS()
 
     delete[] fn;
 
-    if (fits_read_keys_lng(fptr, "NAXIS", 1, 3, naxes, &nfound, &status))
+    if (fits_read_keys_lng(fptr, "NAXIS", 1, 4, naxes, &nfound, &status))
         printerror(status);
+    if (naxes[2]<=1)
+        naxes[2]=naxes[3];
     minB[0]=0;
     minB[1]=0;
     minB[2]=0;

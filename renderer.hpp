@@ -22,11 +22,12 @@ public:
     std::vector<VkImage> m_Images;
     VkFormat m_ImageFormat;
     VkExtent2D m_Extent;
-
+#ifdef USE_GLFW
     void SetWindow(GLFWwindow* win)
     {
         m_window = win;
     };
+#endif
 
     void SetExtent(int width, int height)
     {
@@ -66,8 +67,9 @@ public:
     VkImageView GetImageView(int i){return m_ImageViews[i];};
     std::vector<VkImageView> m_ImageViews;
 private:
+#ifdef USE_GLFW
     GLFWwindow* m_window;
-    
+    #endif
     VkFormat m_depthFormat;
 
     //created only for interactive
