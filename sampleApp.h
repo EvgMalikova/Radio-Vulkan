@@ -9,9 +9,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-*/
 #include <vector>
-
+*/
 #include <memory>
 
 #include "loaders.hpp"
@@ -33,9 +32,7 @@
 
 #include <tclap/CmdLine.h>
 
-//#ifdef USE_MPIRV
-//#include <mpi.h>
-//#endif
+
 #ifdef USE_NVVK
 #include "nvvk/context_vk.hpp"
 #include <nvvk/descriptorsets_vk.hpp>
@@ -44,13 +41,106 @@
 #include <nvvk/shaders_vk.hpp> // For nvvk::createShaderModule
 #include <nvvk/structs_vk.hpp>
 #endif
+
+#include "server/event.h"
+//Contains camera that is undefined and controller.cc
+#include "server/controller.h"
+//#include "server/command.h"
+#include "WSocketMServer.h"
+
+#include "SyncQueue.h"
+#define ZRF_int32_size
+#include "Serialize.h"
+
+#include "cxxsupport/ls_image.h"
+
+class SplotchServer
+    {
+        
+    public:
+        int width;
+        int height;
+    bool server_active    = false;
+    bool server_passive =false;
+    bool waiting=true;
+    bool image_modified         = false;
+    const int wsImageStreamPort = 8881;
+    std::string wsocket_image_protocol;
+    
+    WSocketMServer< EventQueue& >* ims;
+    
+    std::vector<char>image_buffer;
+    
+    
+    // Framerate
+    int   frid                  = 0;
+    float mspf                  = 0;
+    float ideal_mspf            = 32;
+    float max_mspf              = 32;
+    
+    
+    
+    LS_Image blank_image;
+    
+   
+    
+    // Threading
+    std::thread imagesend_thread;
+    
+    // Controllers 
+     EventController     ims_events;
+     CameraController    camera;
+     ClientController*    clients;
+    
+    // Events
+    EventQueue ims_ev_queue;
+    SyncQueue< std::vector<char> > ims_send_queue;
+    //std::vector<char> image_buffer;
+    
+    void send_image(const char* image_buffer,int count);
+    void launch_image_services();
+    
+    void init( int width, int height, SimpCamera cam);
+    void init_comms();
+    
+    void finalize();
+    // Waiting/loading
+    void set_waiting_image();
+    void set_loading_image();
+    
+    //camera events related
+    void handle_events();
+    
+    int quality                 = 95;
+    
+    //TODO:
+    void update_parameters(SimpCamera& m_cam);
+    void launch_event_services();
+    
+   /* CommandController commands;
+    WSocketMServer< CommandQueue& >* ctl;*/
+    std::string wsocket_control_protocol;
+    const int wsControlStreamPort = 8882;
+    
+    
+    
+};
+    
+    
+
 const int MAX_FRAMES_IN_FLIGHT = 1;
 //typedef mpi_image
 class SampleApp {
 public:
+    SplotchServer server;
+    
+    
     
     int world_size;
     int world_rank;
+    
+    void updateScene();
+ 
     
     std::vector<std::tuple<int,uint8_t *>> mpi_images;
     std::vector<uint8_t*> images;
