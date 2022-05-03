@@ -60,10 +60,24 @@ include_directories(${IMGUI_DIR} ..)
 
 endif ()
 
+find_package(libjpeg-turbo)
+find_library(LIBJPEGTURBO_LIBRARY turbojpeg PATHS ${LIBJPEGTURBO_ROOT_DIR} PATH_SUFFIXES lib lib64)
+
+if(LIBJPEGTURBO_FOUND)
+set(LIBJPEGTURBO_INCLUDE_DIRS ${LIBJPEGTURBO_INCLUDE_DIR})
+set(LIBJPEGTURBO_LIBRARIES ${LIBJPEGTURBO_LIBRARY})
+message(STATUS "Found mysqlcppconn    (include: ${LIBJPEGTURBO_INCLUDE_DIR}, library: ${LIBJPEGTURBO_LIBRARY})")
+  mark_as_advanced(LIBJPEGTURBO_ROOT_DIR LIBJPEGTURBO_LIBRARY_RELEASE LIBJPEGTURBO_LIBRARY_DEBUG
+                                 LIBJPEGTURBO_LIBRARY LIBJPEGTURBO_INCLUDE_DIR)
+endif()
+
+
+find_package(libwebsockets CONFIG REQUIRED)
+
 
 # Third party library dependencies
 #
-set(SOURCE_FILES interactive.cpp sampleApp.cpp window.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp postprocessing.cpp )
+set(SOURCE_FILES interactive.cpp sampleApp.cpp window.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp postprocessing.cpp server/controller.cc server/camera.cc )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/render_doc)
 include_directories(${CMAKE_BINARY_DIR})
@@ -146,6 +160,14 @@ file(GLOB NVMATH_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/nvmath/*.cpp ${CMAKE_CURRENT
         ${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/lib64)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/WSRTI/tjpp/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/WSRTI/websocketplus/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/WSRTI/serializer/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/WSRTI/syncqueue)
+
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/lib64)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/include)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/INSTALL/lib64)
 include_directories(/group/director2185/emalikova/particle-based-vis/INSTALL/include)
 
@@ -181,10 +203,46 @@ if(BUILD_MPI)
 target_link_libraries(${PROJECT_NAME} ${MPI_C_LIBRARIES})
 endif()
 target_link_libraries(${PROJECT_NAME} ${cfitsio} )
+target_link_libraries(${PROJECT_NAME} ${LIBJPEGTURBO_LIBRARY} )
 if(BUILD_GUI)
 
  target_link_libraries(${PROJECT_NAME} glfw )
 endif()
+
+
+
+	if (websockets_shared)
+		target_link_libraries(${PROJECT_NAME}
+					websockets_shared
+					${LIBWEBSOCKETS_DEP_LIBS})
+		add_dependencies(${PROJECT_NAME}
+					websockets_shared)
+	else()
+		target_link_libraries(${PROJECT_NAME}
+					websockets
+					${LIBWEBSOCKETS_DEP_LIBS})
+	endif()
+	
+	if (HAS_LWS_WITH_SECURE_STREAMS_PROXY_API OR has_ss_proxy OR
+	    LWS_WITH_SECURE_STREAMS_PROXY_API)
+
+		add_compile_options(-DLWS_SS_USE_SSPC)
+		add_executable(${PROJECT_NAME}-client ${SRCS})
+
+		if (websockets_shared)
+			target_link_libraries(${PROJECT_NAME}-client
+						websockets_shared
+						${LIBWEBSOCKETS_DEP_LIBS})
+			add_dependencies(${PROJECT_NAME}-client
+						websockets_shared)
+		else()
+			target_link_libraries(${PROJECT_NAME}-client
+						websockets
+						${LIBWEBSOCKETS_DEP_LIBS})
+		endif()
+	endif()
+
+
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders)
 

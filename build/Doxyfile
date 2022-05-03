@@ -1,0 +1,31 @@
+
+PROJECT_NAME           = "HPC Astro"
+
+
+PROJECT_NUMBER         = 1.0
+
+
+OUTPUT_DIRECTORY       = /home/evgeniya/Documents/GitHub/Radio-Vulkan/build/doc_doxygen/
+INPUT                  = /home/evgeniya/Documents/GitHub/Radio-Vulkan/pipeline.hpp \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/pipeline.cpp \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/loaders.cpp \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/loaders.hpp \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/dataStruct.h \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/helpers.hpp \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/helpers.cpp \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/others.hpp \
+/home/evgeniya/Documents/GitHub/Radio-Vulkan/docs/concept.md
+
+FILE_PATTERNS          = *.h *.hpp *.cxx *.cpp *.txt *.md
+
+TOC_INCLUDE_HEADINGS =YES
+
+MARKDOWN_SUPPORT=YES
+
+RECURSIVE              = YES
+
+USE_MDFILE_AS_MAINPAGE = /home/evgeniya/Documents/GitHub/Radio-Vulkan/docs/concept.md"
+
+IMAGE_PATH = /home/evgeniya/Documents/GitHub/Radio-Vulkan/docs/images
+
+
