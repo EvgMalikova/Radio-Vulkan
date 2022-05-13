@@ -468,10 +468,8 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
           
               // Print off a hello world message
              DEBUG_LOG<<" processor "<< processor_name<<" rank "<< world_rank<< "out of "<< world_size<<std::endl;
-             
+          
              context.SetMPI(world_rank,world_size);
-          
-          
           
           #endif
           
@@ -616,7 +614,7 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                //update staff
                //update_state();
               
-                              
+                           
                server.handle_events();
                //TODO: how to transmit the values of cam???
                server.update_parameters(m_cam);//TODO:update buffer and queue, get image
@@ -726,12 +724,17 @@ void SplotchServer::set_loading_image()
             commands.handler(cmd_queue.pop());
           }
           */
-      
+       if(ims_ev_queue.empty()) DEBUG_LOG<<"Event Queue is empty "<<std::endl;
+       else {
           // Events recieved from image stream server
           while(!ims_ev_queue.empty())
           { 
              ims_events.handler(ims_ev_queue.pop());
-          }   
+             DEBUG_LOG<<"Event Occured "<<std::endl;
+          }
+          
+              
+          }
         }
       }
       
@@ -954,8 +957,7 @@ void   SplotchServer::send_image(const char* img,int count)
                         
                        
                          const uint8_t* imagedata;
-                         std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-              
+                    
                                  // Create the linear tiled destination image to copy to and to read the memory from
                                  VkImageCreateInfo imgCreateInfo {};
                                  imgCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -985,9 +987,7 @@ void   SplotchServer::send_image(const char* img,int count)
                                  memAllocInfo.memoryTypeIndex = pv::getMemoryTypeIndex(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,context.m_physicalDevice);
                                  CHECK_VK(vkAllocateMemory(context.m_device, &memAllocInfo, nullptr, &dstImageMemory));
                                  CHECK_VK(vkBindImageMemory(context.m_device, dstImage, dstImageMemory, 0));
-              
-                              std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                                 // Do the actual blit from the offscreen image to our host visible destination image
+                         // Do the actual blit from the offscreen image to our host visible destination image
                                  VkCommandBufferAllocateInfo cmdBufAllocateInfo = pv::commandBufferAllocateInfo(pipe->m_commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
                                  VkCommandBuffer copyCmd;
                                  CHECK_VK(vkAllocateCommandBuffers(context.m_device, &cmdBufAllocateInfo, &copyCmd));
@@ -1018,8 +1018,8 @@ void   SplotchServer::send_image(const char* img,int count)
                                  imageCopyRegion.extent.width = ren.m_Extent.width;
                                  imageCopyRegion.extent.height = ren.m_Extent.height;
                                  imageCopyRegion.extent.depth = 1;
-              std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                                 vkCmdCopyImage(
+             
+             vkCmdCopyImage(
                                          copyCmd,
                                          ren.m_Images[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                          dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1041,8 +1041,8 @@ void   SplotchServer::send_image(const char* img,int count)
                                  CHECK_VK(vkEndCommandBuffer(copyCmd));
               
                                  pv::submitWork(copyCmd, context.m_queueGCT, context.m_device);
-              std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                                 // Get layout of the image (including row pitch)
+            
+                     // Get layout of the image (including row pitch)
                                  VkImageSubresource subResource{};
                                  subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                                  VkSubresourceLayout subResourceLayout;
@@ -1059,7 +1059,7 @@ void   SplotchServer::send_image(const char* img,int count)
                                 uint8_t* pOut=&outImData[0];
                                  
                                  imagedata += subResourceLayout.offset;
-              std::cout<<"start copying image buffer"<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
+              //std::cout<<"start copying image buffer"<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
                                  //ComputeTF
               
                        
@@ -1095,7 +1095,7 @@ void   SplotchServer::send_image(const char* img,int count)
                                          }
                                          imagedata += subResourceLayout.rowPitch;
                                  }
-                                 std::cout<<"Conventionally copied"<<std::endl;
+                                 //std::cout<<"Conventionally copied"<<std::endl;
                                  /**/
               
                                  // Clean up resources
@@ -1118,8 +1118,7 @@ void   SplotchServer::send_image(const char* img,int count)
                       
                      
                        const uint8_t* imagedata;
-                       std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-            
+                     
                                // Create the linear tiled destination image to copy to and to read the memory from
                                VkImageCreateInfo imgCreateInfo {};
                                imgCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1150,8 +1149,7 @@ void   SplotchServer::send_image(const char* img,int count)
                                CHECK_VK(vkAllocateMemory(context.m_device, &memAllocInfo, nullptr, &dstImageMemory));
                                CHECK_VK(vkBindImageMemory(context.m_device, dstImage, dstImageMemory, 0));
             
-                            std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                               // Do the actual blit from the offscreen image to our host visible destination image
+          // Do the actual blit from the offscreen image to our host visible destination image
                                VkCommandBufferAllocateInfo cmdBufAllocateInfo = pv::commandBufferAllocateInfo(pipe->m_commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
                                VkCommandBuffer copyCmd;
                                CHECK_VK(vkAllocateCommandBuffers(context.m_device, &cmdBufAllocateInfo, &copyCmd));
@@ -1182,8 +1180,8 @@ void   SplotchServer::send_image(const char* img,int count)
                                imageCopyRegion.extent.width = ren.m_Extent.width;
                                imageCopyRegion.extent.height = ren.m_Extent.height;
                                imageCopyRegion.extent.depth = 1;
-            std::cout<<"start writing to RGB image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                               vkCmdCopyImage(
+            
+                   vkCmdCopyImage(
                                        copyCmd,
                                        ren.m_Images[0], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                        dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1205,8 +1203,8 @@ void   SplotchServer::send_image(const char* img,int count)
                                CHECK_VK(vkEndCommandBuffer(copyCmd));
             
                                pv::submitWork(copyCmd, context.m_queueGCT, context.m_device);
-            std::cout<<"start writing to image "<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                               // Get layout of the image (including row pitch)
+           
+                    // Get layout of the image (including row pitch)
                                VkImageSubresource subResource{};
                                subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                                VkSubresourceLayout subResourceLayout;
@@ -1223,8 +1221,8 @@ void   SplotchServer::send_image(const char* img,int count)
                               uint8_t* pOut=&outImData[0];
                                
                                imagedata += subResourceLayout.offset;
-            std::cout<<"start copying image buffer"<<ren.m_Extent.height<<", "<<ren.m_Extent.width<<std::endl;
-                               //ComputeTF
+           
+                    //ComputeTF
             
                      
             
@@ -1388,97 +1386,83 @@ void   SplotchServer::send_image(const char* img,int count)
         
       }
       
-void SampleApp::generateResultOfMPI()
-  {
-      //create an new staff for execution
-    
-           
-   
-    vkDeviceWaitIdle(context.m_device);
-    DEBUG_LOG<<"Start processing"<<std::endl;
-
-              
-              //Initialise other postprocessing pipeline
-              //post_process->SetCommandPool(pipe->m_commandPool);
-              post_process->SetSize(ren.m_Extent.width, ren.m_Extent.height);
-        
-                                  
-              
-              
-              post_process->CreateMPIDescriptorSetLayout(context);
-              post_process->CreateMPIGraphicsPipeline(context, ren);
-              
-              //TODO: Create vertex ,buffer, Texture
-               // pLoader.CreateVertexBuffer(pipe->m_commandPool, context.m_device, context.m_physicalDevice, context.m_queueGCT); //would be different for ray-tracing
-               DEBUG_LOG << "All preliminary commands executed " <<std::endl;
-               
-               int ts=(world_size-2)*3+2;
-               int jj=1;
-               for (int i=0;i<ts;i++)
-               {
-                   if(i==0)
-                   images.push_back(std::get<1>(mpi_images[i]));
-                   else {
-                     if(i!=ts-1){
-                     images.push_back(std::get<1>(mpi_images[jj]));
-                     images.push_back(std::get<1>(mpi_images[jj]));
-                     images.push_back(std::get<1>(mpi_images[jj]));
-                     jj++;
-                     } else 
-                     images.push_back(std::get<1>(mpi_images[world_size-1]));
-
-                   }
-               }
-               images.resize(ts);
-               DEBUG_LOG<<"Images size "<<images.size()<<std::endl;
-               int numSl=world_size;
-               post_process->GenerateSlices(numSl);//world_size);
-             /* post_process->CreateTextureImage(context,images,ren.m_Extent.width,ren.m_Extent.height,4);
-              DEBUG_LOG<<"Texture created "<<std::endl;
-              post_process->CreateTextureImageView(context);
-              DEBUG_LOG<<"View created "<<std::endl;
-              post_process->CreateTextureSampler(context);
-              DEBUG_LOG<<"Sampler created "<<std::endl;*/
-              int texWidth=ren.m_Extent.width;
-              int texHeight=ren.m_Extent.height;
-              int channel=4;
-            /* stbi_uc* pixels1 = stbi_load("0_headless.ppm", &texWidth, &texHeight, &channel, STBI_rgb_alpha);
-                 stbi_uc* pixels2 = stbi_load("1_headless.ppm", &texWidth, &texHeight, &channel, STBI_rgb_alpha);
-                       
-                std::vector< uint8_t*> pixel2;
-                pixel2.push_back(pixels1);
-                pixel2.push_back(pixels2);
-                pixel2.resize(2);
-                */
-                
-              post_process->SetImageFormat(VK_FORMAT_R8G8B8A8_UNORM,4);
-              post_process->prepareNoiseTexture(context,ren.m_Extent.width,ren.m_Extent.height,ts,images.data());
-              post_process->CreateVertexBuffer(context);
-              post_process->CreateIndexBuffer(context);
-              
-              //m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
-              
-              //TODO: check correct creation of those
-              post_process->CreateMPIDescriptorPool(context, ren.m_Images.size());
-              //TODO: pass vertex and imageViews
-             // DEBUG_LOG << "Successfull as far " << ren.m_Images.size() <<std::endl;
-              
-              post_process->CreateMPIDescriptorSets(context, ren.m_Images.size(), m_cam); // are defined after layout
-              DEBUG_LOG << "Successfull as far " << std::endl;
+  void SampleApp::generateResultOfMPI()
+    {
+        //create an new staff for execution
+      
              
-              //TODO: submit vertex to command buffer
-         post_process->CreateCommandBuffers(context);
-         
-         vkResetCommandBuffer(post_process->m_commandBuffers[0],  0);
-         post_process->RecordCommandBuffer(ren);
-         
-         post_process->submitBuffers(context,0);
-         
-        DEBUG_LOG<<"PostProcessing Queeu submitted "<<std::endl;
-         //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-    
-  }
-
+     
+      vkDeviceWaitIdle(context.m_device);
+      DEBUG_LOG<<"Start processing"<<std::endl;
+ 
+                
+                //Initialise other postprocessing pipeline
+                //post_process->SetCommandPool(pipe->m_commandPool);
+                post_process->SetSize(ren.m_Extent.width, ren.m_Extent.height);
+          
+                                    
+                
+                
+                post_process->CreateMPIDescriptorSetLayout(context);
+                post_process->CreateMPIGraphicsPipeline(context, ren);
+                
+                //TODO: Create vertex ,buffer, Texture
+                 // pLoader.CreateVertexBuffer(pipe->m_commandPool, context.m_device, context.m_physicalDevice, context.m_queueGCT); //would be different for ray-tracing
+                 DEBUG_LOG << "All preliminary commands executed " <<std::endl;
+                 
+                 for (int i=0;i<world_size;i++)
+                 {
+                     images.push_back(std::get<1>(mpi_images[i]));
+                 }
+                 images.resize(world_size);
+                 DEBUG_LOG<<"Images size "<<images.size()<<std::endl;
+                 int numSl=world_size;
+                 post_process->GenerateSlices(numSl);//world_size);
+               /* post_process->CreateTextureImage(context,images,ren.m_Extent.width,ren.m_Extent.height,4);
+                DEBUG_LOG<<"Texture created "<<std::endl;
+                post_process->CreateTextureImageView(context);
+                DEBUG_LOG<<"View created "<<std::endl;
+                post_process->CreateTextureSampler(context);
+                DEBUG_LOG<<"Sampler created "<<std::endl;*/
+                int texWidth=ren.m_Extent.width;
+                int texHeight=ren.m_Extent.height;
+                int channel=4;
+              /* stbi_uc* pixels1 = stbi_load("0_headless.ppm", &texWidth, &texHeight, &channel, STBI_rgb_alpha);
+                   stbi_uc* pixels2 = stbi_load("1_headless.ppm", &texWidth, &texHeight, &channel, STBI_rgb_alpha);
+                         
+                  std::vector< uint8_t*> pixel2;
+                  pixel2.push_back(pixels1);
+                  pixel2.push_back(pixels2);
+                  pixel2.resize(2);
+                  */
+                  
+                post_process->SetImageFormat(VK_FORMAT_R8G8B8A8_UNORM,4);
+                post_process->prepareNoiseTexture(context,ren.m_Extent.width,ren.m_Extent.height,numSl,images.data());
+                post_process->CreateVertexBuffer(context);
+                post_process->CreateIndexBuffer(context);
+                
+                //m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
+                
+                //TODO: check correct creation of those
+                post_process->CreateMPIDescriptorPool(context, ren.m_Images.size());
+                //TODO: pass vertex and imageViews
+               // DEBUG_LOG << "Successfull as far " << ren.m_Images.size() <<std::endl;
+                
+                post_process->CreateMPIDescriptorSets(context, ren.m_Images.size(), m_cam); // are defined after layout
+                DEBUG_LOG << "Successfull as far " << std::endl;
+               
+                //TODO: submit vertex to command buffer
+           post_process->CreateCommandBuffers(context);
+           
+           vkResetCommandBuffer(post_process->m_commandBuffers[0],  0);
+           post_process->RecordCommandBuffer(ren);
+           
+           post_process->submitBuffers(context,0);
+           
+          DEBUG_LOG<<"PostProcessing Queeu submitted "<<std::endl;
+           //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+      
+    }
 
 
 
