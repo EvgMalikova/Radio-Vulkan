@@ -530,7 +530,7 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                   } else if(world_rank==0)  {
                       mpi_images.reserve(world_size);
                       for (int i=0;i<world_size;i++)
-                          std::get<0>(mpi_images[i]) < 10000 //se big for further sorting
+                          std::get<0>(mpi_images[i]) < 10000; //se big for further sorting
                       mpi_images.emplace ( mpi_images.begin(),std::make_tuple(0,img)); //push first one
                       for (int ii=1;ii<world_size;ii++){
                           uint8_t* imagedata2= (uint8_t *) malloc(count);

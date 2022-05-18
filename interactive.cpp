@@ -1,3 +1,4 @@
+/*
 #include <pipeline.hpp>
 #include <window.hpp>
 #define GLM_FORCE_RADIANS
@@ -5,7 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
-
+*/
 
 #include <tclap/CmdLine.h>
 

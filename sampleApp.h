@@ -18,11 +18,11 @@
 #include <set>
 
 //#include <vulkan/vulkan.h>
-
+/*
 #include "cxxsupport/vec3.h"
 #include "kernel/colour.h"
 #include "kernel/colourmap.h"
-
+*/
 //#include <limits.h>
 //#include <fstream>
 #include "fitsReader.h"
