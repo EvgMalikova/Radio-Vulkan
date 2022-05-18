@@ -518,6 +518,9 @@ int count2=ren.m_Extent.width*ren.m_Extent.height*3;
                CopyRGBMPIBuffer(0,imgF);
               WriteMPIBuffer(imgF,world_rank,count2);
               
+              uint8_t* imgF2= (uint8_t *) malloc(count2);
+              uint8_t* imgF3= (uint8_t *) malloc(count2);
+              
               #ifdef USE_MPIRV
 MPI_Barrier (MPI_COMM_WORLD);
 
@@ -564,7 +567,7 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                   
                  
                   
-                uint8_t* imgF2= (uint8_t *) malloc(count2);
+                //uint8_t* imgF2= (uint8_t *) malloc(count2);
                   CopyRGBMPIBuffer(0,imgF2);
                   
                   /*Latest
@@ -589,9 +592,9 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                          */          
                                    
                
-              uint8_t* imgF2= (uint8_t *) malloc(count2);
-               uint8_t* imgF3= (uint8_t *) malloc(count2);
+             
                CopyRGBMPIBuffer(0,imgF2);
+               #endif
                //server.server_active=true;
                //if (server.server_active)
                {
@@ -655,7 +658,7 @@ DEBUG_LOG<<"Send from "<<world_rank<<std::endl;
                             
               //WriteMPIBuffer(imgF2,9,count2);
                   }
-                  #endif
+                 
             
                 
               
