@@ -261,17 +261,17 @@ endforeach()
 
 #Start testing
 
-enable_testing()
+#enable_testing()
 
-set(MPITEST_FILES mpi_test.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp postprocessing.cpp )
+#set(MPITEST_FILES mpi_test.cpp camera.cpp renderer.cpp context.cpp pipeline.cpp helpers.cpp loaders.cpp postprocessing.cpp )
 
-add_definitions(-DUSE_MPIRV)
-add_definitions(-DOMPI_SKIP_MPICXX)
-remove_definitions(-DUSE_GLFW)
+#add_definitions(-DUSE_MPIRV)
+#add_definitions(-DOMPI_SKIP_MPICXX)
+#remove_definitions(-DUSE_GLFW)
 
-add_executable(mpi_test  ${MPITEST_FILES} ${SPLOTCH_SOURCE} )
-target_link_libraries(mpi_test ${Vulkan_LIBRARY})# ${MPI_C_LIBRARIES})
-target_link_libraries(mpi_test ${MPI_C_LIBRARIES})
-target_link_libraries(mpi_test  ${cfitsio} )
+#add_executable(mpi_test  ${MPITEST_FILES} ${SPLOTCH_SOURCE} )
+#target_link_libraries(mpi_test ${Vulkan_LIBRARY})# ${MPI_C_LIBRARIES})
+#target_link_libraries(mpi_test ${MPI_C_LIBRARIES})
+#target_link_libraries(mpi_test  ${cfitsio} )
 
-add_test(MPITest mpi_test)
+#add_test(MPITest mpi_test)

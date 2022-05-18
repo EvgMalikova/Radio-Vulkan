@@ -1,0 +1,4 @@
+/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/build/CMakeFiles/edit_cache.dir
+/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/build/CMakeFiles/syncqueue-test.dir
+/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/build/CMakeFiles/rebuild_cache.dir
+/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/build/CMakeFiles/syncvalue-test.dir

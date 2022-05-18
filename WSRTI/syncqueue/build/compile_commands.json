@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/build",
+  "command": "/usr/bin/c++     -std=c++11   -o CMakeFiles/syncqueue-test.dir/test/SyncQueueTest.cpp.o -c /home/evgeniya/Desktop/refactored/WSRTI/syncqueue/test/SyncQueueTest.cpp",
+  "file": "/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/test/SyncQueueTest.cpp"
+},
+{
+  "directory": "/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/build",
+  "command": "/usr/bin/c++     -std=c++11   -o CMakeFiles/syncvalue-test.dir/test/SyncValueTest.cpp.o -c /home/evgeniya/Desktop/refactored/WSRTI/syncqueue/test/SyncValueTest.cpp",
+  "file": "/home/evgeniya/Desktop/refactored/WSRTI/syncqueue/test/SyncValueTest.cpp"
+}
+]
