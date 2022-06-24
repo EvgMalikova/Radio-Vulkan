@@ -18,11 +18,11 @@
 #include <set>
 
 //#include <vulkan/vulkan.h>
-/*
-#include "cxxsupport/vec3.h"
-#include "kernel/colour.h"
-#include "kernel/colourmap.h"
-*/
+
+//#include "cxxsupport/vec3.h"
+//#include "kernel/colour.h"
+//#include "kernel/colourmap.h"
+
 //#include <limits.h>
 //#include <fstream>
 #include "fitsReader.h"
@@ -151,6 +151,9 @@ public:
     void WriteMPIBuffer(uint8_t* imagedata, int l, int count);
     void generateResultOfMPI();
     
+    #ifdef USE_MPIRV
+    void RenderMPI(int count,int count2,uint8_t*img, uint8_t *imgF2);    
+    #endif
     
     PFN_vkDebugMarkerSetObjectTagEXT vkDebugMarkerSetObjectTag = VK_NULL_HANDLE;
     	PFN_vkDebugMarkerSetObjectNameEXT vkDebugMarkerSetObjectName = VK_NULL_HANDLE;

@@ -209,7 +209,6 @@ if(BUILD_GUI)
  target_link_libraries(${PROJECT_NAME} glfw )
 endif()
 
-# These are additional include paths you will need
 foreach(item "${LIBWEBSOCKETS_INCLUDE_DIRS}")
 	include_directories(${item})
 	set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}" ${item})

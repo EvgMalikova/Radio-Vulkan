@@ -163,7 +163,7 @@ let eventBuffer = new Int32Array(4);
 let cmdStringBuffer = new ArrayBuffer(256 + 4 + 4);
 
 //event handler: forward GUI events to server
-let eventHandler = WSEventHandler(streams.ctrlStream, eventBuffer);
+let eventHandler = WSEventHandler(streams.imageStream, eventBuffer);
 
 
 //add file input to allow for file uploads

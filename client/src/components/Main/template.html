@@ -1,0 +1,20 @@
+
+    <div class="hello">
+      <h1>{{ msg }}</h1>
+      
+  
+      <div id="gui">
+    <!-- DO USE tabindex TO ENABLE CAPTURE OF KEY EVENTS ON ANY ELEMENT -->
+    <!-- tabindex = -1 allows focus only through explicit .focus() method
+         invocation -->
+   
+    <remote-view :client="config"/>
+    <connection-control />
+
+  </div>
+      <p>
+    <!-- <button class="button" @click="teststore">{{ count }}</button>
+  -->
+      </p>
+  
+    </div>
