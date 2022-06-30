@@ -67,6 +67,12 @@ class SplotchServer
     const int wsImageStreamPort = 8881;
     std::string wsocket_image_protocol;
     
+    
+     void InitCamera(glm::vec3 eyePos, glm::vec3 focusPos, glm::vec3 up, float move_speed, float rotate_speed)
+    { camera.init(eyePos, focusPos, up, move_speed, rotate_speed,ideal_mspf);
+    }
+    
+    
     WSocketMServer< EventQueue& >* ims;
     
     std::vector<char>image_buffer;
@@ -100,7 +106,7 @@ class SplotchServer
     void send_image(const char* image_buffer,int count);
     void launch_image_services();
     
-    void init( int width, int height, SimpCamera cam);
+    void init( int width, int height, SimpCamera cam, pv2::Context context);
     void init_comms();
     
     void finalize();
@@ -150,6 +156,7 @@ public:
     void CopyRGBMPIBuffer(int l, uint8_t* img);
     void WriteMPIBuffer(uint8_t* imagedata, int l, int count);
     void generateResultOfMPI();
+    void updateResultOfMPI();
     
     #ifdef USE_MPIRV
     void RenderMPI(int count,int count2,uint8_t*img, uint8_t *imgF2);    
@@ -209,7 +216,7 @@ private:
         NUM_MOUSE_BUTTONIDX,
     };
 
-    SimpCamera m_cam;
+    SimpCamera m_cam; //in server version is accessed from controller
     pv2::PipelineTYPE   m_pipeType;
     pv2::InteractionMode m_mode;
     //glm::mat4 world = glm::mat4(1);

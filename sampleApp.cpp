@@ -209,6 +209,11 @@ void SampleApp::InitCamera()
     vval = 0;
 
     model_scale = 1.0;
+
+    float move_speed = (0.1);
+    float rotate_speed = (0.1);
+
+    server.InitCamera(eyePos, focusPos, up, move_speed, rotate_speed);
 }
 
 void SampleApp::initWindowAndCallbacks()
@@ -366,7 +371,15 @@ void SampleApp::initRenderingPipe(int width, int height)
 
         //CreateShadersBindingTable
     }
-    m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
+    //m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
+    //switch for headless and server rendering
+    if (m_mode == pv2::InteractionMode::Interactive)
+        m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
+    else
+    {
+        //use controller camera
+        server.camera.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
+    }
 
     //TODO: check correct creation of those
     pipe->CreateDescriptorPool(context, ren.m_Images.size());
@@ -381,7 +394,12 @@ void SampleApp::initRenderingPipe(int width, int height)
         std::dynamic_pointer_cast<PipelineRayTrace>(pipe)->CreateBufferDescriptor(pLoader.m_vertexBuffer);
     }
     //DEBUG_LOG << "Successfull as far " << std::endl;
-    pipe->CreateDescriptorSets(context, ren.m_Images.size(), m_cam); // are defined after layout
+    //pipe->CreateDescriptorSets(context, ren.m_Images.size(), m_cam);
+    if (m_mode == pv2::InteractionMode::Interactive)
+        pipe->CreateDescriptorSets(context, ren.m_Images.size(), m_cam); // are defined after layout
+    else
+        pipe->CreateDescriptorSets(context, ren.m_Images.size(), server.camera.GetCamera());
+
     DEBUG_LOG << "Successfull as far " << std::endl;
 
     if (this->m_pipeType == pv2::PipelineTYPE::Rasterisation)
@@ -512,7 +530,6 @@ void SampleApp::SetUpAll(int width, int height)
         drawHeadless(0);
         uint8_t *img = (uint8_t *)malloc(count);
         CopyMPIBuffer(0, img);
-       
 
         //Sending image data to main process
         //DEBUG_LOG << "Test output of image" << std::endl;
@@ -522,39 +539,49 @@ void SampleApp::SetUpAll(int width, int height)
 
 #ifdef USE_MPIRV
 
-//Allocate size for images
-if (world_rank == 0)
-{
-images.resize(world_size);
-mpi_images.resize(world_size);
+        //Allocate size for images
+        if (world_rank == 0)
+        {
+            images.resize(world_size);
+            mpi_images.resize(world_size);
 
+            for (int ii = 0; ii < world_size; ii++)
+            {
+                uint8_t *imagedata2 = (uint8_t *)malloc(count);
+                mpi_images[ii] = std::make_tuple(ii, imagedata2);
+            }
+        }
+        RenderMPI(count, count2, img, imgF2);
+        //Postprocessing
+        if (world_rank == 0)
+        {
+            //testing the result
+            DEBUG_LOG << "Output of images stack " << mpi_images.size() << std::endl;
 
-for (int ii = 0; ii < world_size; ii++)
-    {
-        uint8_t *imagedata2 = (uint8_t *)malloc(count);
-        mpi_images[ii]=std::make_tuple(ii, imagedata2);
-    }
-}       
-        RenderMPI(count,count2,img,imgF2);
-       
+            //Postprocessing
+            generateResultOfMPI();
+
+            // writing to buffer
+            CopyRGBMPIBuffer(0, imgF2);
+        }
+
 #else
         DEBUG_LOG << "NO MPI pushing one image for world size " << world_size << std::endl;
-       
-                  
+
         CopyRGBMPIBuffer(0, imgF2);
 #endif
 
-
-DEBUG_LOG<<"Finish writing test images "<<std::endl;
+        DEBUG_LOG << "Finish writing test images " << std::endl;
         //server.server_active=true;
         //if (server.server_active)
-//#ifdef USE_MPIRV
-            // Initiate server for MPI
+        //#ifdef USE_MPIRV
+        // Initiate server for MPI
 
-            if (world_rank == 0)
+        if (world_rank == 0)
         {
             server.image_modified = true;
-            server.init(ren.m_Extent.width, ren.m_Extent.height, m_cam);
+            server.init(ren.m_Extent.width, ren.m_Extent.height, m_cam, context);
+            server.camera.active = true;
             DEBUG_LOG << "Server configured, further rendering" << std::endl;
         }
 
@@ -572,15 +599,17 @@ DEBUG_LOG<<"Finish writing test images "<<std::endl;
 
             //update staff
             //update_state();
+
             if (world_rank == 0)
             {
                 server.handle_events();
                 //TODO: how to transmit the values of cam???
                 server.update_parameters(m_cam); //TODO:update buffer and queue, get image
             }
+
             //Introduce
             //rotate_x+=0.5;
-            angleY += 5.5 * coef;
+            /*angleY += 5.5 * coef;
             if ((angleY >= 250) || (angleY <= -250))
             {
                 coef = -1 * coef;
@@ -589,21 +618,32 @@ DEBUG_LOG<<"Finish writing test images "<<std::endl;
             //if (rotate_x>=2*M_PI) rotate_x=0;
             m_rotateY = coef * 5.5;
 
-            m_cam.UpdateUniformBuffer(context.m_device, 0, model_scale, ren.m_Extent.width, ren.m_Extent.height, m_rotateX, m_rotateY);
+           m_cam.UpdateUniformBuffer(context.m_device, 0, model_scale, ren.m_Extent.width, ren.m_Extent.height, m_rotateX, m_rotateY);
+           */
             pv::submitWork(pipe->m_commandBuffers[0], context.m_queueGCT, context.m_device);
 
             vkDeviceWaitIdle(context.m_device);
-            
-            #ifdef USE_MPIRV
+
+#ifdef USE_MPIRV
             //Copy buffers for all processes
             CopyMPIBuffer(0, img);
-            
-            
+
             //Render for all processes
-            RenderMPI(count,count2,img,imgF3);
-            #else
+            RenderMPI(count, count2, img, imgF3);
+            if (world_rank == 0)
+            {
+                //testing the result
+                DEBUG_LOG << "Output of images stack " << mpi_images.size() << std::endl;
+
+                //Postprocessing
+                updateResultOfMPI();
+
+                // writing to buffer
+                CopyRGBMPIBuffer(0, imgF3);
+            }
+#else
             CopyRGBMPIBuffer(0, imgF3);
-            #endif
+#endif
             //WriteMPIBuffer(imgF3, 11, count2);
 
             //CopyRGBMPIBuffer(0, imgF3);
@@ -617,26 +657,26 @@ DEBUG_LOG<<"Finish writing test images "<<std::endl;
 
                 server.send_image((char *)imgF3, count2);
             }
-}
+        }
 
 //Free data
 #ifdef USE_MPIRV
- for (int ii = 0; ii < world_size; ii++)
-    {
-  
-   delete[] std::get<1>(mpi_images[ii]);
-  }
+        for (int ii = 0; ii < world_size; ii++)
+        {
+
+            delete[] std::get<1>(mpi_images[ii]);
+        }
 #endif
 
-if (world_rank == 0)
-            {
+        if (world_rank == 0)
+        {
             server.finalize();
-            }
+        }
 
-//#endif
-            delete[] imgF2;
-            delete[] imgF3;
-            
+        //#endif
+        delete[] imgF2;
+        delete[] imgF3;
+
         //           #endif
 
         if (renderDocApi)
@@ -653,75 +693,43 @@ void SampleApp::updateScene()
 {
 }
 
-
 #ifdef USE_MPIRV
-void SampleApp::RenderMPI(int count,int count2,uint8_t *img,uint8_t *imgF2)
+void SampleApp::RenderMPI(int count, int count2, uint8_t *img, uint8_t *imgF2)
 {
     MPI_Barrier(MPI_COMM_WORLD);
 
-
-
     // WriteMPIBuffer(img, world_rank, count2);
-      //MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
 
-char *str = "test";
-if (world_rank != 0)
-{
-   // DEBUG_LOG << "Send from " << world_rank << " " << str[0] << std::endl;
-
-    MPI_Send(img, count, MPI_CHAR, 0, world_rank, MPI_COMM_WORLD);
-    DEBUG_LOG << "Send from " << world_rank << std::endl;
-}
-else if (world_rank == 0)
-{
-    //mpi_images.reserve(world_size);
-    //for (int i = 0; i < world_size; i++)
-     //   std::get<0>(mpi_images[i]) < 10000;                          //se big for further sorting
-    //mpi_images.emplace(mpi_images.begin(), std::make_tuple(0, img)); //push first one
-    mpi_images[0]=std::make_tuple(0, img);
-    for (int ii = 1; ii < world_size; ii++)
+    char *str = "test";
+    if (world_rank != 0)
     {
-        uint8_t *imagedata2 = std::get<1>(mpi_images[ii]);//(uint8_t *)malloc(count);
-        MPI_Recv(imagedata2, count, MPI_CHAR, ii, ii, MPI_COMM_WORLD,
-                 MPI_STATUS_IGNORE);
-        //mpi_images.emplace(mpi_images.begin() + ii, std::make_tuple(ii, imagedata2));
-        //mpi_images[ii]=std::make_tuple(ii, imagedata2);
-        DEBUG_LOG << "Process " << world_rank << " received from process " << ii << std::endl;
-        
+        // DEBUG_LOG << "Send from " << world_rank << " " << str[0] << std::endl;
+
+        MPI_Send(img, count, MPI_CHAR, 0, world_rank, MPI_COMM_WORLD);
+        DEBUG_LOG << "Send from " << world_rank << std::endl;
     }
-//mpi_images[world_size]=std::make_tuple(world_size, std::get<1>mpi_images[world_size-1]);
-}
-//MPI_Barrier(MPI_COMM_WORLD);
-if (world_rank == 0)
-{
-    //std::sort(mpi_images.begin(), mpi_images.end());
-    //mpi_images.resize(world_size);
-    //DEBUG_LOG << "Size of images" << mpi_images.size() << " for rank " << world_rank << std::endl;
+    else if (world_rank == 0)
+    {
+        //mpi_images.reserve(world_size);
+        //for (int i = 0; i < world_size; i++)
+        //   std::get<0>(mpi_images[i]) < 10000;                          //se big for further sorting
+        //mpi_images.emplace(mpi_images.begin(), std::make_tuple(0, img)); //push first one
+        mpi_images[0] = std::make_tuple(0, img);
+        for (int ii = 1; ii < world_size; ii++)
+        {
+            uint8_t *imagedata2 = std::get<1>(mpi_images[ii]); //(uint8_t *)malloc(count);
+            MPI_Recv(imagedata2, count, MPI_CHAR, ii, ii, MPI_COMM_WORLD,
+                     MPI_STATUS_IGNORE);
+            //mpi_images.emplace(mpi_images.begin() + ii, std::make_tuple(ii, imagedata2));
+            //mpi_images[ii]=std::make_tuple(ii, imagedata2);
+            DEBUG_LOG << "Process " << world_rank << " received from process " << ii << std::endl;
+        }
+        //mpi_images[world_size]=std::make_tuple(world_size, std::get<1>mpi_images[world_size-1]);
+    }
+    //MPI_Barrier(MPI_COMM_WORLD);
 
-    //testing the result
-    DEBUG_LOG << "Output of images stack " << mpi_images.size() << std::endl;
-    //for (int i=0;i<mpi_images.size();i++){
-    //    WriteMPIBuffer(std::get<1>(mpi_images[i]), i, count2);
-    //   WriteMPIBuffer(mpi_images[i],i);
-    // DEBUG_LOG<< mpi_images[i]<<std::endl;
-    // }
-
-    //Postprocessing
-    generateResultOfMPI();
-
-    // writing to buffer
-    CopyRGBMPIBuffer(0, imgF2);
-
-    /*Latest
-                                    * Writing output of final image for debug
-                                    * */
-
-    /*WriteMPIBuffer(imgF2,9,count2); */
-    /*Right now they are both true , should be changed later
-                      * */
-}
-//MPI_Barrier(MPI_COMM_WORLD);
-
+    //MPI_Barrier(MPI_COMM_WORLD);
 }
 #endif
 
@@ -769,21 +777,21 @@ void SplotchServer::handle_events()
             commands.handler(cmd_queue.pop());
           }
           */
-        if (ims_ev_queue.empty())
-            DEBUG_LOG << "Event Queue is empty " << std::endl;
-        else
+        //if (ims_ev_queue.empty())
+        //DEBUG_LOG << "Event Queue is empty " << std::endl;
+        //else
         {
             // Events recieved from image stream server
             while (!ims_ev_queue.empty())
             {
                 ims_events.handler(ims_ev_queue.pop());
-                DEBUG_LOG << "Event Occured " << std::endl;
+                //DEBUG_LOG << "Event Occured " << std::endl;
             }
         }
     }
 }
 
-void SplotchServer::init(int width, int height, SimpCamera cam)
+void SplotchServer::init(int width, int height, SimpCamera cam, pv2::Context context)
 
 {
     this->width = width;
@@ -806,10 +814,18 @@ void SplotchServer::init(int width, int height, SimpCamera cam)
 
     float move_speed = (0.1);
     float rotate_speed = (0.1);
-    glm::vec3 eye = cam.GetEye();
-    glm::vec3 look = cam.GetLookAt();
-    glm::vec3 up = cam.GetUpVector();
-    camera.init(eye, look, up, move_speed, rotate_speed, ideal_mspf);
+    /*glm::vec3 eye = cam.GetEye();
+    glm::vec3 look = cam.GetTarget();
+    glm::vec3 up = cam.GetUpVector();*/
+    cam.SetWindowSize(width, height);
+    cam.SetModelScale(model_scale);
+    cam.SetDevice(context.m_device);
+    //camera.init(eye, look, up, move_speed, rotate_speed, ideal_mspf);
+    camera.SetWindowSize(width, height);
+    camera.SetModelScale(model_scale);
+    camera.SetDevice(context.m_device);
+
+    camera.SetCam(cam);
 
     // Observers setup
     // Could probably do this in constructors rather than manually?
@@ -987,7 +1003,7 @@ void SampleApp::WriteMPIBuffer(uint8_t *imageData, int l, int count)
     const char *filename = str;
     pipe->SaveImage(filename, (char *)imageData, count, ren.m_Extent.width, ren.m_Extent.height);
 
-    DEBUG_LOG << "Framebuffer image saved " << str<< std::endl;
+    DEBUG_LOG << "Framebuffer image saved " << str << std::endl;
 }
 
 void SampleApp::CopyMPIBuffer(int l, uint8_t *img)
@@ -1286,7 +1302,7 @@ void SampleApp::CopyRGBMPIBuffer(int l, uint8_t *outImData)
         }
         imagedata += subResourceLayout.rowPitch;
     }
-   // std::cout << "Conventionally copied" << std::endl;
+    // std::cout << "Conventionally copied" << std::endl;
     /**/
 
     // Clean up resources
@@ -1363,7 +1379,10 @@ void SampleApp::drawHeadless(int imageIndex)
     rotate_x += 10;
 
     DEBUG_LOG << "Start drawing frame " << std::endl;
-    m_cam.UpdateUniformBuffer(context.m_device, imageIndex, model_scale, ren.m_Extent.width, ren.m_Extent.height, rotate_x, rotate_y);
+    //This is non interactive so updete via controller
+    //m_cam.UpdateUniformBuffer(context.m_device, imageIndex, model_scale, ren.m_Extent.width, ren.m_Extent.height, rotate_x, rotate_y);
+    server.camera.UpdateUniformBuffer(context.m_device, imageIndex, model_scale, ren.m_Extent.width, ren.m_Extent.height, rotate_x, rotate_y);
+
     DEBUG_LOG << "Buffer is updated " << std::endl;
 
     pipe->CreateCommandBuffers(context, ren, pLoader.m_vertexBuffer, m_vsize);
@@ -1403,32 +1422,26 @@ void SampleApp::drawHeadless(int imageIndex)
     //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
+void SampleApp::generateResultOfMPI()
+{
+    //create an new staff for execution
 
-      void SampleApp::generateResultOfMPI()
-        {
-            //create an new staff for execution
-          
-                 
-         //images.resize(0);
-          vkDeviceWaitIdle(context.m_device);
-          DEBUG_LOG<<"Start processing"<<std::endl;
-     
-                    
-                    //Initialise other postprocessing pipeline
-                    //post_process->SetCommandPool(pipe->m_commandPool);
-                    post_process->SetSize(ren.m_Extent.width, ren.m_Extent.height);
-              
-                                        
-                    
-                    
-                    post_process->CreateMPIDescriptorSetLayout(context);
-                    post_process->CreateMPIGraphicsPipeline(context, ren);
-                    
-                    //TODO: Create vertex ,buffer, Texture
-                     // pLoader.CreateVertexBuffer(pipe->m_commandPool, context.m_device, context.m_physicalDevice, context.m_queueGCT); //would be different for ray-tracing
-                     DEBUG_LOG << "All preliminary commands executed " <<std::endl;
-                     
-/*                     int ts=(world_size-2)*3+2;
+    //images.resize(0);
+    vkDeviceWaitIdle(context.m_device);
+    DEBUG_LOG << "Start processing" << std::endl;
+
+    //Initialise other postprocessing pipeline
+    //post_process->SetCommandPool(pipe->m_commandPool);
+    post_process->SetSize(ren.m_Extent.width, ren.m_Extent.height);
+
+    post_process->CreateMPIDescriptorSetLayout(context);
+    post_process->CreateMPIGraphicsPipeline(context, ren);
+
+    //TODO: Create vertex ,buffer, Texture
+    // pLoader.CreateVertexBuffer(pipe->m_commandPool, context.m_device, context.m_physicalDevice, context.m_queueGCT); //would be different for ray-tracing
+    DEBUG_LOG << "All preliminary commands executed " << std::endl;
+
+    /*                     int ts=(world_size-2)*3+2;
                      for (int i=0;i<ts;i++)
                      {
                          if(i==0)
@@ -1448,52 +1461,104 @@ void SampleApp::drawHeadless(int imageIndex)
 
 */
 
+    int ts = world_size;
+    for (int jj = 0; jj < world_size; jj++)
+    {
+        images[jj] = std::get<1>(mpi_images[jj]);
+    }
+    //images[world_size]=std::get<1>(mpi_images[world_size-1]);
+    //ts=ts+3;
+    DEBUG_LOG << "Total Images " << ts << std::endl;
+    // images.resize(ts);
+    DEBUG_LOG << "Images size " << images.size() << std::endl;
+    int numSl = world_size;
+    post_process->GenerateSlices(numSl); //world_size);
 
+    int texWidth = ren.m_Extent.width;
+    int texHeight = ren.m_Extent.height;
+    int channel = 4;
 
-int ts=world_size;
-for (int jj=0;jj<world_size;jj++)
-{
-images[jj]=std::get<1>(mpi_images[jj]);
+    post_process->SetImageFormat(VK_FORMAT_R8G8B8A8_UNORM, channel);
+    post_process->prepareNoiseTexture(context, ren.m_Extent.width, ren.m_Extent.height, ts, images.data());
+    //updateNoiseTexture(pv2::Context context,uint8_t** pixel2)
+    post_process->CreateVertexBuffer(context);
+    post_process->CreateIndexBuffer(context);
+
+    //m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
+
+    //TODO: check correct creation of those
+    post_process->CreateMPIDescriptorPool(context, ren.m_Images.size());
+    //TODO: pass vertex and imageViews
+    // DEBUG_LOG << "Successfull as far " << ren.m_Images.size() <<std::endl;
+
+    post_process->CreateMPIDescriptorSets(context, ren.m_Images.size(), m_cam); // are defined after layout
+    DEBUG_LOG << "Successfull as far " << std::endl;
+
+    //TODO: submit vertex to command buffer
+    post_process->CreateCommandBuffers(context);
+
+    vkResetCommandBuffer(post_process->m_commandBuffers[0], 0);
+    post_process->RecordCommandBuffer(ren);
+
+    post_process->submitBuffers(context, 0);
+
+    DEBUG_LOG << "PostProcessing Queeu submitted " << std::endl;
+    //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
-//images[world_size]=std::get<1>(mpi_images[world_size-1]);
-//ts=ts+3;                     
-DEBUG_LOG<<"Total Images "<<ts<<std::endl;
-                    // images.resize(ts);
-                     DEBUG_LOG<<"Images size "<<images.size()<<std::endl;
-                     int numSl=world_size;
-                     post_process->GenerateSlices(numSl);//world_size);
-                   
-                    int texWidth=ren.m_Extent.width;
-                    int texHeight=ren.m_Extent.height;
-                    int channel=4;
-                                       
-                    post_process->SetImageFormat(VK_FORMAT_R8G8B8A8_UNORM,channel);
-                    post_process->prepareNoiseTexture(context,ren.m_Extent.width,ren.m_Extent.height,ts,images.data());
-                    post_process->CreateVertexBuffer(context);
-                    post_process->CreateIndexBuffer(context);
-                    
-                    //m_cam.CreateUniformBuffers(context.m_device, context.m_physicalDevice, ren.m_Images.size());
-                    
-                    //TODO: check correct creation of those
-                    post_process->CreateMPIDescriptorPool(context, ren.m_Images.size());
-                    //TODO: pass vertex and imageViews
-                   // DEBUG_LOG << "Successfull as far " << ren.m_Images.size() <<std::endl;
-                    
-                    post_process->CreateMPIDescriptorSets(context, ren.m_Images.size(), m_cam); // are defined after layout
-                    DEBUG_LOG << "Successfull as far " << std::endl;
-                   
-                    //TODO: submit vertex to command buffer
-               post_process->CreateCommandBuffers(context);
-               
-               vkResetCommandBuffer(post_process->m_commandBuffers[0],  0);
-               post_process->RecordCommandBuffer(ren);
-               
-               post_process->submitBuffers(context,0);
-               
-              DEBUG_LOG<<"PostProcessing Queeu submitted "<<std::endl;
-               //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-          
-        }
+
+void SampleApp::updateResultOfMPI()
+{
+    //create an new staff for execution
+
+    //images.resize(0);
+    vkDeviceWaitIdle(context.m_device);
+
+    /*                     int ts=(world_size-2)*3+2;
+                     for (int i=0;i<ts;i++)
+                     {
+                         if(i==0)
+                         images.push_back(std::get<1>(mpi_images[i]));
+                         else {
+                           if(i!=ts-1){
+                           images.push_back(std::get<1>(mpi_images[jj]));
+                           images.push_back(std::get<1>(mpi_images[jj]));
+                           images.push_back(std::get<1>(mpi_images[jj]));
+                           jj++;
+                           } else 
+                           images.push_back(std::get<1>(mpi_images[world_size-1]));
+                         }
+                     }
+                     images.resize(ts);
+
+
+*/
+
+    int ts = world_size;
+    for (int jj = 0; jj < world_size; jj++)
+    {
+        images[jj] = std::get<1>(mpi_images[jj]);
+    }
+    //images[world_size]=std::get<1>(mpi_images[world_size-1]);
+    //ts=ts+3;
+    DEBUG_LOG << "Total Images " << ts << std::endl;
+    // images.resize(ts);
+    DEBUG_LOG << "Images size " << images.size() << std::endl;
+    int numSl = world_size;
+
+    //post_process->prepareNoiseTexture(context,ren.m_Extent.width,ren.m_Extent.height,ts,images.data());
+    post_process->updateNoiseTexture(context, images.data());
+
+    //TODO: submit vertex to command buffer
+    // post_process->CreateCommandBuffers(context);
+
+    //vkResetCommandBuffer(post_process->m_commandBuffers[0],  0);
+    //post_process->RecordCommandBuffer(ren);
+
+    post_process->submitBuffers(context, 0);
+
+    // DEBUG_LOG<<"PostProcessing Queeu u "<<std::endl;
+    //currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
 
 void SampleApp::createSyncObjects()
 {

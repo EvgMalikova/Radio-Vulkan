@@ -15,7 +15,7 @@ CameraController::CameraController(){
  }
  
  void CameraController::mouse_handler(const MouseEvent& m){
-   std::cout<<"EVENT mouse"<<std::endl;
+   //std::cout<<"EVENT mouse"<<std::endl;
    if(active)
    {  
      float scale = (ideal_mspf/mspf); 
@@ -39,9 +39,21 @@ CameraController::CameraController(){
              x_rot = -motion_x*local_rot; 
              y_rot = -motion_y*local_rot;
              if(m.button>>8 & int(KeyModifierId::SHIFT))
+             {
                camera.RotateTargetAround(x_rot, y_rot, 0.f);
+               
+             }
+              
              else
-               camera.RotateAroundTarget(x_rot, y_rot, 0.f);
+             {
+               camera.RotateAroundTarget(x_rot, -y_rot, 0.f);
+               
+               //camera.rotate(x_rot*2.5, -y_rot*2.5);
+              
+                           
+               //std::cout<<"Camera rotation"<<std::endl;
+             }
+               
  
              mouse_x = m.x;
              mouse_y = m.y;
@@ -59,7 +71,7 @@ CameraController::CameraController(){
  }
  
  void CameraController::key_handler(const KeyEvent& k){
-   std::cout<<"EVENT key"<<std::endl;
+   //std::cout<<"EVENT key"<<std::endl;
    // Scale for smooth movement with varying fps
    if(active)
    {
@@ -151,7 +163,7 @@ CameraController::CameraController(){
   void ClientController::load_default_client()
   {
     clients[""] = ClientData();
-    clients[""].files = { 
+    /*clients[""].files = { 
                           "/Users/tims/Splotch/web/splotch-server/splotch/default.par",
                          // "/Users/tims/Splotch/web/splotch-server/splotch/snap092.par", 
                           "/Users/tims/Splotch/web/splotch-server/splotch/hdf5.par",
@@ -180,7 +192,7 @@ CameraController::CameraController(){
                                 "palettes/Tipsy.pal",
                                 "palettes/TronInv.pal",
                                 "palettes/Yellow.pal",
-                            };
+                            };*/
   }
 
   ClientController::ClientData& ClientController::client_data(std::string s)

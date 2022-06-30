@@ -24,6 +24,8 @@
 
 #include <glm/glm.hpp>
 #include <vector>
+
+#include "camera.hpp"
 #define GLM_FORCE_RADIANS
 //#include "cxxsupport/vec3.h"
 //#include "server/matrix4.h"
@@ -37,24 +39,18 @@
 
 // Provides the functionality within the renderers for a movable
 // and configurable camera through the use of event subscriptions.
-class Camera2 
+class Camera2 : public SimpCamera
 {
 public:
-	Camera2() = default; 
+	Camera2() = default;
 	Camera2(glm::vec3 eye, glm::vec3 lookat, glm::vec3 upVector)
-	        
-	    {
-	       Create(eye,lookat,upVector);
-	    };
-	
-	// Getters
-	glm::vec3 GetCameraPosition();
-	glm::vec3 GetLookAt();
-	glm::vec3 GetUpVector();
-	glm::vec3 GetTarget();
+
+	{
+		Create(eye, lookat, upVector);
+	};
 
 	// Setters
-	void SetLookAt(glm::vec3);
+
 	void SetFieldOfView(float);
 	void SetMaxAcceleration(glm::vec3);
 	void SetMaxSpeed(glm::vec3);
@@ -63,11 +59,56 @@ public:
 	void Create(glm::vec3, glm::vec3);
 	void Create(glm::vec3, glm::vec3, glm::vec3);
 
+	void RotateAroundTarget(float yaw, float pitch, float roll)
+	{
+		rotateAroundTarget(yaw, pitch);
+		UpdateUniformBuffer();
+	};
+	void RotateTargetAround(float yaw, float pitch, float roll)
+	{
+		rotateTargetAround(yaw, pitch);
+		UpdateUniformBuffer();
+	};
+
+	// Camera and target
+	void MoveCamAndTargetForward(float dist)
+	{
+		moveCamAndTargetForward(dist);
+		UpdateUniformBuffer();
+	};
+	void MoveCamAndTargetUpward(float dist)
+	{
+		MoveCamAndTargetUpward(dist);
+		UpdateUniformBuffer();
+	};
+	void MoveCamAndTargetRight(float dist)
+	{
+		moveCamAndTargetRight(dist);
+		UpdateUniformBuffer();
+	};
+
+	// Camera only
+	void MoveForward(float dist)
+	{
+		moveForward(dist);
+		UpdateUniformBuffer();
+	};
+	void MoveUpward(float dist)
+	{
+		moveUpward(dist);
+		UpdateUniformBuffer();
+	};
+	void MoveRight(float dist)
+	{
+		moveRight(dist);
+		UpdateUniformBuffer();
+	};
+
 	// Makes the camera look at a bounding box
-	void SetTarget(glm::vec3);
+	//void SetTarget(glm::vec3);
 
 	// Rotation functionality - all do the same thing or as they say
-	void Rotate(glm::vec3);
+	/*void Rotate(glm::vec3);
 	void Rotate(float, float, float);
 	void RotateYaw(float);
 	void RotatePitch(float);
@@ -113,19 +154,15 @@ public:
 
 	//Matrix access
 	glm::mat4 GetMVPMatrix();
-	glm::mat4 GetViewMatrix();
+	//glm::mat4 GetViewMatrix();
 	glm::mat4 GetProjectionMatrix();
+	
+	//overwrite to get correct values for buffers
+*/
 
 private:
-	// Camera positions and targets including orientation
-	glm::vec3 cameraPosition;
-	glm::vec3 cameraLookAt; // Relative to cameraPosition (normalised directional vector)
-	glm::vec3 cameraTarget; // Setable target point to lookat/rotate around
-	glm::vec3 cameraUpVector;
-	glm::vec3 cameraRightVector;
-
 	// Proper movement for smooth camera transitions
-	// Acceleration and speed are treated seperately for x y z, 
+	// Acceleration and speed are treated seperately for x y z,
 	// corresponding to right, up, forward respectively
 	glm::vec3 acceleration;
 	glm::vec3 maxAcceleration;
@@ -140,15 +177,13 @@ private:
 	float cameraFarClip;
 
 	// Cameras view and projection matrices
-	glm::mat4 cameraViewMatrix;
+
 	glm::mat4 cameraProjectionMatrix;
 
 	// Internal functions for creating view matrix
 	void ConstructViewMatrix(bool);
 
 	bool hasFocus;
-
 };
-
 
 #endif

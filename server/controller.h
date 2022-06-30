@@ -3,6 +3,8 @@
 
 #include "server/camera.h"
 #include "server/event.h"
+
+#include <vulkan/vulkan.h>
 #include <iostream>
 
 class SplotchServer;
@@ -11,7 +13,41 @@ class SplotchServer;
 class CameraController{
 public:
   CameraController();
+  
+  /* The following operations provide an access to camera (SimpCamera) vulkan related staff from the controller*/
+  
+  void SetWindowSize(int width, int height){
+      camera.SetWindowSize(width,height);
+  }
+  void SetModelScale(float model_scale)
+  {
+      camera.SetModelScale(model_scale);
+  }
+  
+  void SetDevice(VkDevice dev)
+  {
+      camera.SetDevice(dev);
+  }
+  
+  Camera2 GetCamera()
+  {
+      return camera;
+  }
+  
+  
+  void CreateUniformBuffers(VkDevice device, VkPhysicalDevice physicalDevice, int size){
+      camera.CreateUniformBuffers(device, physicalDevice, size);
+  }
+  void UpdateUniformBuffer(VkDevice device, uint32_t currentImage, float model_scale, int width, int height, float rotate_x, float rotate_y)
+  {
+      camera.UpdateUniformBuffer(device, currentImage, model_scale, width, height, rotate_x, rotate_y);
+      
+  }
+  
 
+  
+ /*Conventional for camera controller*/
+  
   void init(glm::vec3& pos, glm::vec3& at, glm::vec3& up, float m, float r, float imspf);
 
   void reposition(glm::vec3&& pos, glm::vec3&& at, glm::vec3&& up);
@@ -34,12 +70,22 @@ public:
   float move_speed    = 0.1;
   float rotate_speed  = 0.1;
   bool active         = false;
+  void SetCam (SimpCamera& camera) {
+      cam=camera;
+  }
+  
 private: 
   // Camera
   Camera2 camera;
+  SimpCamera cam;
   float ideal_mspf  = 32; 
   float mouse_x     = 0;
   float mouse_y     = 0;
+  
+  /*int m_width;
+  int m_height;
+  VkDevice m_device;
+  float m_model_scale;*/
 };
 
 //

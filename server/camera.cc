@@ -22,40 +22,6 @@
 #include "camera.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-	glm::vec3 Camera2::GetCameraPosition()
-	{
-		return cameraPosition;
-	}
-	glm::vec3 Camera2::GetLookAt()
-	{
-		return cameraLookAt;
-	}
-	glm::vec3 Camera2::GetUpVector()
-	{
-		return cameraUpVector;
-	}
-	glm::vec3 Camera2::GetTarget()
-	{
-		return cameraTarget;
-	}
-	void Camera2::SetLookAt(glm::vec3 target)
-	{
-		// Calculate relative direction from the current position
-		cameraLookAt =  target - cameraPosition;
-		cameraLookAt=glm::normalize(cameraLookAt);
-
-		// Normalize the right and up vectors
-		
-		cameraRightVector = glm::cross(cameraUpVector, cameraLookAt);
-		cameraRightVector=glm::normalize(cameraRightVector);
-
-		cameraUpVector = glm::cross(cameraLookAt, cameraRightVector);
-		cameraRightVector=glm::normalize(cameraUpVector);
-
-		// Construct a view matrix (special case)
-		ConstructViewMatrix(false);
-		return;
-	}
 
 	void Camera2::SetFieldOfView(float fov)
 	{
@@ -90,14 +56,32 @@
 
 	void Camera2::Create(glm::vec3 position, glm::vec3 lookAt, glm::vec3 up)
 	{
-		// Set cameras position, up vector and fov (no modifications needed here)
+		//SimpCamera(position,lookAt,up);
+		
+		SetEye(position);
+		SetTarget(lookAt);
+		SetUp(up);
+		UpdateViewMatrix();
+		        
+		/*// Set cameras position, up vector and fov (no modifications needed here)
 		cameraPosition = position;
 		cameraUpVector = up;
 		velocity = glm::vec3(0,0,0);
+		
+		
+		
 
 		// Set the look at point for the camera (the cameras right vector is calculated here!)
 		SetTarget(lookAt);
-		return;
+		
+		//From SimpCamera
+		ConstructViewMatrix(false);
+		//m_viewMatrix=cameraViewMatrix;
+		//UpdateViewMatrix(); //to be replaced with ConstructViewMatrix(false); in initial camera
+		return;*/
+		m_width=1000;
+		m_height=1000;
+		m_model_scale=1.0;
 	}
 
 	// void Camera2::LookAtBox(BoundingBox box)
@@ -209,11 +193,7 @@
 	// 	return;
 	// }
 
-	void Camera2::SetTarget(glm::vec3 inTarget)
-	{
-		cameraTarget = inTarget;
-		SetLookAt(cameraTarget);
-	}
+/*
 
 	void Camera2::Rotate(glm::vec3 rotation)
 	{
@@ -316,8 +296,14 @@
 		return;
 	}
 
-	void Camera2::RotateAroundTarget(float yaw, float pitch, float roll)
+	void Camera2::RotateAroundTarget(float rotate_x, float rotate_y, float roll)
 	{
+		
+		float deltaAngleX = (2 * M_PI / 1000); // a movement from left to right = 2*PI = 360 deg
+		        float deltaAngleY = (M_PI / 1000); // a movement from top to bottom = PI = 180 deg
+		        float yaw = rotate_x * deltaAngleX;
+		        float pitch = rotate_y * deltaAngleY;
+		        
 		glm::mat4 rotationMtxH=glm::mat4(1.0f);
 		glm::mat4 rotationMtxP=glm::mat4(1.0f);
 		
@@ -344,8 +330,9 @@
 		}
 
 		cameraPosition = glm::vec3(focusVector) + cameraTarget;
-
-		SetLookAt(cameraTarget);
+        SetEye(finalPosition);
+		//SetLookAt(cameraTarget);
+		UpdateViewMatrix();
 	}
 
 	void Camera2::RotateTargetAround(float yaw, float pitch, float roll)
@@ -378,6 +365,7 @@
 		cameraTarget = glm::vec3(focusVector) + cameraPosition;
 
 		SetLookAt(cameraTarget);
+		UpdateViewMatrix();
 	}
 
 	void Camera2::Move(glm::vec3 movement)
@@ -540,13 +528,6 @@
 		return (cameraViewMatrix*cameraProjectionMatrix);
 	}
 
-	glm::mat4 Camera2::GetViewMatrix()
-	{
-		// Rebuild and return the view matrix
-		ConstructViewMatrix(true);
-
-		return cameraViewMatrix;
-	}
 
 	glm::mat4 Camera2::GetProjectionMatrix()
 	{
@@ -573,62 +554,17 @@
 		}
 
 
-		// std::cout << "right.x: " << cameraRightVector.x << std::endl;
-		// std::cout << "right.y: " << cameraRightVector.y << std::endl;
-		// std::cout << "right.z: " << cameraRightVector.z << std::endl;
-		// std::cout << "up.x: " << cameraUpVector.x << std::endl;
-		// std::cout << "up.y: " << cameraUpVector.y << std::endl;
-		// std::cout << "up.z: " << cameraUpVector.z << std::endl;
-		// std::cout << "at.x: " << cameraLookAt.x << std::endl;
-		// std::cout << "at.y: " << cameraLookAt.y << std::endl;
-		// std::cout << "at.z: " << cameraLookAt.z << std::endl;
-		// std::cout << "position.x: " << cameraPosition.x << std::endl;
-		// std::cout << "position.y: " << cameraPosition.y << std::endl;
-		// std::cout << "position.z: " << cameraPosition.z << std::endl;
-
-		// std::cout << "Dotprod right and pos: " << dotprod(cameraRightVector,cameraPosition) << std::endl;
-		// std::cout << "Dotprod up and pos: " << dotprod(cameraUpVector,cameraPosition) << std::endl;
-		// std::cout << "Dotprod at and pos: " << dotprod(cameraLookAt,cameraPosition) << std::endl;
+	
 
 		// Build the view matrix itself
-		cameraViewMatrix[0][0] = cameraRightVector.x;
-		cameraViewMatrix[1][0] = cameraRightVector.y;
-		cameraViewMatrix[2][0] = cameraRightVector.z;
-		cameraViewMatrix[3][0] = -glm::dot(cameraRightVector, cameraPosition);
+		
 
-		cameraViewMatrix[0][1] =  cameraUpVector.x;
-		cameraViewMatrix[1][1] =  cameraUpVector.y;
-		cameraViewMatrix[2][1] =  cameraUpVector.z;
-		cameraViewMatrix[3][1] = -glm::dot(cameraUpVector, cameraPosition);
+		UpdateViewMatrix(); 
 
-		cameraViewMatrix[0][2] = cameraLookAt.x;
-		cameraViewMatrix[1][2] = cameraLookAt.y;
-		cameraViewMatrix[2][2] = cameraLookAt.z;
-		cameraViewMatrix[3][2] = -glm::dot(cameraLookAt, cameraPosition);
 
-		cameraViewMatrix[0][3] = 0;
-		cameraViewMatrix[1][3] = 0;
-		cameraViewMatrix[2][3] = 0;
-		cameraViewMatrix[3][3] = 1;
-
-		// std::cout << "trans[0][0]: " << cameraViewMatrix[0][0] << std::endl;
-		// std::cout << "trans[0][1]: " << cameraViewMatrix[0][1] << std::endl;
-		// std::cout << "trans[0][2]: " << cameraViewMatrix[0][2] << std::endl;
-		// std::cout << "trans[0][3]: " << cameraViewMatrix[0][3] << std::endl;
-		// std::cout << "trans[1][0]: " << cameraViewMatrix[1][0] << std::endl;
-		// std::cout << "trans[1][1]: " << cameraViewMatrix[1][1] << std::endl;
-		// std::cout << "trans[1][2]: " << cameraViewMatrix[1][2] << std::endl;
-		// std::cout << "trans[1][3]: " << cameraViewMatrix[1][3] << std::endl;
-		// std::cout << "trans[2][0]: " << cameraViewMatrix[2][0] << std::endl;
-		// std::cout << "trans[2][1]: " << cameraViewMatrix[2][1] << std::endl;
-		// std::cout << "trans[2][2]: " << cameraViewMatrix[2][2] << std::endl;
-		// std::cout << "trans[2][3]: " << cameraViewMatrix[2][3] << std::endl;
-		// std::cout << "trans[3][0]: " << cameraViewMatrix[3][0] << std::endl;
-		// std::cout << "trans[3][1]: " << cameraViewMatrix[3][1] << std::endl;
-		// std::cout << "trans[3][2]: " << cameraViewMatrix[3][2] << std::endl;
-		// std::cout << "trans[3][3]: " << cameraViewMatrix[3][3] << std::endl;
 
 		// exit(0);
 		return;
 	}
 
+*/
