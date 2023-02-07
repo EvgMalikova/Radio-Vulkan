@@ -1,0 +1,26 @@
+<div id="image_container">
+    <img id="image"  ref="myid" tabindex='-1' :width="getWidth" :height="getHeight" 
+    :src="$store.getters['client/getImageUrl'] "
+    @mousedown="mouseDown($event)"
+    @mouseup="mouseUp($event)"
+    @mousemove="mouseMove($event)"
+    @keypress="keyDown($event)"
+    @keyup="keyUp($event)"
+
+    >
+      <!-- https://bestofvue.com/repo/robinrodricks-vue3-touch-events-->
+   
+      <!--  https://vuejs.org/guide/essentials/event-handling.html#key-modifiers
+   
+    
+    -->
+  </div>
+  <p>
+    <button class="button" @click="setFullScreen">
+        <template v-if="fullScreen">
+        Default
+        </template>
+        <template v-else>
+        Full Screen
+        </template></button>
+  </p>

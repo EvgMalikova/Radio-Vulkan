@@ -1,0 +1,12 @@
+prefix=/home/evgeniya/Desktop/particle-based-vis/INSTALL/CFITSIO
+exec_prefix=/home/evgeniya/Desktop/particle-based-vis/INSTALL/CFITSIO
+libdir=/home/evgeniya/Desktop/particle-based-vis/INSTALL/CFITSIO/lib
+includedir=/home/evgeniya/Desktop/particle-based-vis/INSTALL/CFITSIO/include/
+
+Name: cfitsio
+Description: FITS File Subroutine Library
+URL: https://heasarc.gsfc.nasa.gov/fitsio/
+Version: .
+Libs: -L${libdir} 
+Libs.private: -lm
+Cflags: -I${includedir}

@@ -1,0 +1,31 @@
+
+PROJECT_NAME           = "HPC Astro"
+
+
+PROJECT_NUMBER         = 1.0
+
+
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/doc_doxygen/
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/pipeline.hpp \
+@CMAKE_CURRENT_SOURCE_DIR@/pipeline.cpp \
+@CMAKE_CURRENT_SOURCE_DIR@/loaders.cpp \
+@CMAKE_CURRENT_SOURCE_DIR@/loaders.hpp \
+@CMAKE_CURRENT_SOURCE_DIR@/dataStruct.h \
+@CMAKE_CURRENT_SOURCE_DIR@/helpers.hpp \
+@CMAKE_CURRENT_SOURCE_DIR@/helpers.cpp \
+@CMAKE_CURRENT_SOURCE_DIR@/others.hpp \
+@CMAKE_CURRENT_SOURCE_DIR@/docs/concept.md
+
+FILE_PATTERNS          = *.h *.hpp *.cxx *.cpp *.txt *.md
+
+TOC_INCLUDE_HEADINGS =YES
+
+MARKDOWN_SUPPORT=YES
+
+RECURSIVE              = YES
+
+USE_MDFILE_AS_MAINPAGE = @CMAKE_CURRENT_SOURCE_DIR@/docs/concept.md"
+
+IMAGE_PATH = @CMAKE_CURRENT_SOURCE_DIR@/docs/images
+
+

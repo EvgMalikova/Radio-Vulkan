@@ -1,0 +1,1 @@
+/usr/bin/c++   -std=c++11   CMakeFiles/syncvalue-test.dir/test/SyncValueTest.cpp.o  -o syncvalue-test 
